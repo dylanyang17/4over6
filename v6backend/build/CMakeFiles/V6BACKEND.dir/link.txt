@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/V6BACKEND.dir/main.cpp.o  -o ../bin/V6BACKEND 

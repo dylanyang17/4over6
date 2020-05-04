@@ -1,3 +1,0 @@
-/home/yyr/Work/4over6/v6backend/build/CMakeFiles/rebuild_cache.dir
-/home/yyr/Work/4over6/v6backend/build/CMakeFiles/V6BACKEND.dir
-/home/yyr/Work/4over6/v6backend/build/CMakeFiles/edit_cache.dir

@@ -1,8 +1,13 @@
 #include <cassert>
-#include <inttypes.h>
+#include <cstdio>
 #include <cstring>
 #include <cstdio>
 #include <algorithm>
+#include <inttypes.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 namespace utils {
     // 将单个 16 进制字符转换为 16 进制数
@@ -41,7 +46,7 @@ namespace utils {
     }
     
     // 将 ipv6 的字符串转为 uint16_t 数组
-    void v62uint16(const char *ipv6, uint16_t *addr) {
+    void v62uint16(char *ipv6, uint16_t *addr) {
         int singleColonCnt = 0, doubleColonPos = -1;
         int len = strlen(ipv6);
         memset (addr, 0, 128/8);  // 清空
@@ -78,5 +83,18 @@ namespace utils {
             }
         }
         if (now < 8) addr[now] = num;
+    }
+
+    // 获得 ipv6 的 sockaddr
+    // ipv6 为 ipv6 格式的字符串，port 为小端序存储的端口号
+    sockaddr_in6 getSockaddr6(char *ipv6, uint16_t port) {
+        sockaddr_in6 ret;
+        ret.sin6_family = AF_INET6;
+        v62uint16(ipv6, ret.sin6_addr.__in6_u.__u6_addr16);
+        switchEndian(ret.sin6_addr.__in6_u.__u6_addr16);
+        ret.sin6_port = switchEndian(port);
+        ret.sin6_flowinfo = 0;
+        ret.sin6_scope_id = 0;
+        return ret;
     }
 };

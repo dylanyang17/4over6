@@ -19,8 +19,9 @@ int main() {
     // addr.sin6_family = AF_INET6;
     // addr.sin6_addr = 
 
-    uint16_t addr[8];
-    utils::v62uint16(ipv6, addr);
-    utils::printV6(addr);
+
+    sockaddr_in6 saddr6 = utils::getSockaddr6(const_cast<char*>(ipv6), PORT);
+    int ret = connect(fd, (sockaddr*)(&saddr6), sizeof(saddr6));
+    printf("%d\n", ret);
     return 0;
 }

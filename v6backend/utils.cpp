@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <cstring>
 #include <cstdio>
+#include <algorithm>
 
 namespace utils {
     // 将单个 16 进制字符转换为 16 进制数
@@ -21,6 +22,22 @@ namespace utils {
             printf("%x%s", (int)addr[i], ((i==7) ? "" : ":"));
         }
         printf("\n");
+    }
+
+    // 单个 uint16_t 的大小端转换
+    uint16_t switchEndian(uint16_t num) {
+        int tmp = (num & ((1<<8)-1));
+        num = (num >> 8) | (tmp << 8);
+        return num;
+    }
+
+    // ipv6 的大小端转换
+    void switchEndian(uint16_t *addr) {
+        for (int i = 0; i <= 3; ++i) {
+            std::swap(addr[i], addr[7-i]);
+            addr[i] = switchEndian(addr[i]);
+            addr[7-i] = switchEndian(addr[7-i]);
+        }
     }
     
     // 将 ipv6 的字符串转为 uint16_t 数组

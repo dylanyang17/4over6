@@ -1,7 +1,13 @@
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <cstdio>
+#include "utils.cpp"
 
 int main() {
+    const char ipv6[] = "2402:f000:4:72:808::9a47";
+    const int PORT = 5678;
     int fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (fd < 0) {
         perror("cannot create socket");
@@ -9,9 +15,12 @@ int main() {
     }
     printf("created socket, fd: %d\n", fd);
     
-    sockaddr addr;
-    addr.sa_family = AF_INET6;
-    addr.sa_data
-    bind(fd, );
+    // sockaddr_in6 addr;
+    // addr.sin6_family = AF_INET6;
+    // addr.sin6_addr = 
+
+    uint16_t addr[8];
+    utils::v62uint16(ipv6, addr);
+    utils::printV6(addr);
     return 0;
 }

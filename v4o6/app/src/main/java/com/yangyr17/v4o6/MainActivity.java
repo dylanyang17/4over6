@@ -17,17 +17,23 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 开启每秒计时并进行相应处理的工作
+    protected void startWorker() {
+        timeTextView.setText("0");
+        handler = new WorkHandler(this, getMainLooper());
+        Thread thread = new Thread(new WorkRunnable(handler));
+        thread.start();
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-//        timeTextView = (TextView) findViewById(R.id.textViewTime);
-//        timeTextView.setText("0");
-//        handler = new WorkHandler(this, getMainLooper());
-//        Thread thread = new Thread(new WorkRunnable(handler));
-//        thread.start();
+        timeTextView = (TextView) findViewById(R.id.textViewTime);
+        timeTextView.setText(JNIUtils.StringFromJNI());
         // 请求建立 VPN 连接
-        startVpn();
+        // startVpn();
+        // startWorker();
     }
 
     @Override
@@ -35,14 +41,8 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(request, result, data);
         if (result == RESULT_OK) {
             // 用户同意建立 VPN 连接
-            Thread thread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Intent intent = new Intent(MainActivity.this, MyVpnService.class);
-                    startService(intent);
-                }
-            });
-            thread.start();
+            Intent intent = new Intent(MainActivity.this, MyVpnService.class);
+            startService(intent);
         }
     }
 

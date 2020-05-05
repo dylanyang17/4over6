@@ -37,11 +37,10 @@ namespace utils {
     }
 
     // ipv6 的大小端转换
+    // DEBUG: 注意只需要对每个16位数内部进行大小端转换，而不需要调换16位数之间的顺序
     void switchEndian(uint16_t *addr) {
-        for (int i = 0; i <= 3; ++i) {
-            std::swap(addr[i], addr[7-i]);
+        for (int i = 0; i <= 7; ++i) {
             addr[i] = switchEndian(addr[i]);
-            addr[7-i] = switchEndian(addr[7-i]);
         }
     }
     
@@ -89,12 +88,12 @@ namespace utils {
     // ipv6 为 ipv6 格式的字符串，port 为小端序存储的端口号
     sockaddr_in6 getSockaddr6(char *ipv6, uint16_t port) {
         sockaddr_in6 ret;
+        memset((void*)&ret, 0, sizeof(ret));
         ret.sin6_family = AF_INET6;
         v62uint16(ipv6, ret.sin6_addr.__in6_u.__u6_addr16);
         switchEndian(ret.sin6_addr.__in6_u.__u6_addr16);
-        ret.sin6_port = switchEndian(port);
-        ret.sin6_flowinfo = 0;
-        ret.sin6_scope_id = 0;
+        // inet_pton(AF_INET6, ipv6, &ret.sin6_addr);  // 这句话可以替代上面两句话
+        ret.sin6_port = htons(port);
         return ret;
     }
 };

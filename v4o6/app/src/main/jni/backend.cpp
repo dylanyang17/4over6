@@ -22,12 +22,16 @@ Message readMessage(int fd) {
 }
 
 // 创建 socket、连接服务器，并请求 IP 地址
-const char* init(char *ipv6, int port) {
+// ret 为返回的字符串信息，若失败则对应位失败信息，若成功则对应为 "IP Route DNS DNS DNS" 格式的信息
+// 成功时返回 0，失败返回 -1
+int init(char *ipv6, int port, char *info) {
     // 创建 socket
     int fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (fd < 0) {
-        printf("创建 socket 失败\n");
-        return "创建 socket 失败\n";
+        char tmp[] = "创建 socket 失败";
+        printf("%s\n", tmp);
+        strcpy(info, tmp);
+        return -1;
     }
     printf("创建 socket, fd: %d\n", fd);
     
@@ -35,9 +39,9 @@ const char* init(char *ipv6, int port) {
     sockaddr_in6 saddr6 = utils::getSockaddr6(const_cast<char*>(ipv6), port);
     int ret;
     if ((ret=connect(fd, (sockaddr*)(&saddr6), sizeof(saddr6))) < 0) {
-        printf("连接服务器失败，请确认拥有 ipv6 网络: %d\n", ret);
-        return "连接服务器失败，请确认拥有 ipv6 网络\n";
-        // exit(0);
+        char tmp[] = "连接服务器失败，请确认拥有 ipv6 网络\n";
+        strcpy(info, tmp);
+        return -1;
     } else {
         printf("连接服务器成功：%s %d\n", ipv6, port);
     }
@@ -46,15 +50,21 @@ const char* init(char *ipv6, int port) {
     message.length = sizeof(message);
     int num = send(fd, (void*)&message, message.length, 0);
     if (num < message.length) {
-        printf("向服务器发送 IP 地址请求失败\n");
-        return "向服务器发送 IP 地址请求失败\n";
-        // exit(0);
+        char tmp[] = "向服务器发送 IP 地址请求失败\n";
+        strcpy(info, tmp);
+        return -1;
     }
     message = readMessage(fd);
+    if (message.type != 101) {
+        char tmp[] = "IP 地址响应格式错误\n";
+        strcpy(info, tmp);
+        return -1;
+    }
     printf("IP 地址请求成功:\n");
     message.print();
     printf("进入主循环...\n\n");
-    return "成功\n";
+    strcpy(info, message.data);
+    return 0;
 }
 /*
 int main() {

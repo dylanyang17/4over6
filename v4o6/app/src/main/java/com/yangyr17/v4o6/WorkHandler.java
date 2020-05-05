@@ -17,8 +17,8 @@ public class WorkHandler extends Handler {
     public void handleMessage(Message msg) {
         super.handleMessage(msg);
         MainActivity mainActivity = activity.get();
-        int time = Integer.parseInt(mainActivity.timeTextView.getText().toString()) + 1;
-        mainActivity.timeTextView.setText(String.valueOf(time));
+        int time = Integer.parseInt(mainActivity.textViewTime.getText().toString()) + 1;
+        mainActivity.textViewTime.setText(String.valueOf(time));
         Log.i("timer", String.valueOf(time));
     }
     private WeakReference<MainActivity> activity;

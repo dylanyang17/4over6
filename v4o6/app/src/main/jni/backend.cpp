@@ -78,23 +78,31 @@ int init(char *ipv6, int port, char *info) {
     char fifo_buf[100] = "TEST FIFO", fifo_path[] = "/data/user/0/com.yangyr17.v4o6/files/fifo";
     // DEBUG: 如果已经存在文件了，则 mkfifo 将返回 -1
     struct stat stats;
-    if (stat(fifo_path, &stats) >= 0) {
+    /*if (stat(fifo_path, &stats) >= 0) {
         if (unlink(fifo_path) < 0) {
             char tmp[] = "清理管道文件失败\n";
             strcpy(info, tmp);
             return -1;
         }
+    }*/
+    if (mkfifo(fifo_path, 0666) < 0) {
+        char tmp[] = "创建管道失败\n";
+        strcpy(info, tmp);
+        return -1;
     }
-    if (mknod(fifo_path, S_IFIFO | 0666, 0) < 0) {
+    int fifo_handle;
+    if((fifo_handle = open(fifo_path, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
         char tmp[] = "打开管道文件失败\n";
         strcpy(info, tmp);
         return -1;
     }
-    int fifo_handle = open(fifo_path, O_RDWR | O_CREAT | O_TRUNC);
     int size = write(fifo_handle, fifo_buf, sizeof(fifo_buf));
     char tmp[100];
     sprintf(tmp, "%d", size);
     strcpy(info, tmp);
+    while(true) {
+    ;
+    }
     close(fifo_handle);
 
     // std::thread t(mainLoop);

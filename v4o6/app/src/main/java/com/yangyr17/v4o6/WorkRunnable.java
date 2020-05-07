@@ -35,6 +35,9 @@ public class WorkRunnable implements Runnable {
             Log.i("worker", "start");
             String path = "/data/user/0/com.yangyr17.v4o6/files/fifo";
             File file = new File(path);
+            if (!file.exists()) {
+                Log.e("worker", "文件不存在");
+            }
             Log.i("worker", "lalala0");
             try {
                 byte []buf = new byte[100];
@@ -50,6 +53,8 @@ public class WorkRunnable implements Runnable {
                 Log.e("fifo", "FileNotFoundException");
             } catch (IOException e) {
                 Log.e("fifo", "IOException");
+            } catch (Exception e) {
+                Log.e("fifo", e.toString());
             }
 //            Message message = Message.obtain();
 //            handler.sendMessage(message);

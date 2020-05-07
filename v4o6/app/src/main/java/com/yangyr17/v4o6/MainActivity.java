@@ -128,6 +128,13 @@ public class MainActivity extends AppCompatActivity {
 //                Log.e("fifo", "IOException");
 //            }
             // 进行连接
+            File file = new File("/data/user/0/com.yangyr17.v4o6/files/fifo");
+            if (file.exists()) {
+                Log.i("connect", "清理管道");
+                if (!file.delete()) {
+                    Log.e("connect", "清理管道失败");
+                }
+            }
             startWorker();  // NOTE: delete
             String info = JNIUtils.connectToServer();
 

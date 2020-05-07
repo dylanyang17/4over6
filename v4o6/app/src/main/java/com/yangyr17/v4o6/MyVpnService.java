@@ -2,13 +2,22 @@ package com.yangyr17.v4o6;
 
 import android.content.Intent;
 import android.net.VpnService;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
 public class MyVpnService extends VpnService {
-    protected ParcelFileDescriptor tun;
+    public ParcelFileDescriptor tun;
+    private  MyVpnBinder binder = new MyVpnBinder();
+
+    class MyVpnBinder extends Binder {
+        public MyVpnService getService() {
+            return MyVpnService.this;
+        }
+    }
 
     @Override
     public int onStartCommand (Intent intent, int flags, int startId) {
@@ -28,11 +37,28 @@ public class MyVpnService extends VpnService {
                 .addDnsServer(dns3)
                 .setSession(Constants.session);
         tun = builder.establish();
-        return ret;
+        return START_NOT_STICKY;
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        Log.i("MyVpnService", "onBind");
+        return binder;
     }
 
     @Override
     public void onDestroy(){
+        Log.i("MyVpnService", "onDestroy");
+        try {
+            tun.close();
+        } catch (java.io.IOException e) {
+            Log.e("Destroy tun", "java.io.IOException");
+        }
+        super.onDestroy();
+    }
+
+    public void stopVpn() {
+        Log.i("MyVpnSerice", "stopVpn");
         try {
             tun.close();
         } catch (java.io.IOException e) {

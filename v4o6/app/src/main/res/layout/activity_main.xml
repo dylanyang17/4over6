@@ -7,10 +7,12 @@
     tools:context=".MainActivity">
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="409dp"
-        android:layout_height="729dp"
-        tools:layout_editor_absoluteX="1dp"
-        tools:layout_editor_absoluteY="1dp">
+        android:layout_width="403dp"
+        android:layout_height="603dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <TextView
             android:id="@+id/textView2"
@@ -49,5 +51,26 @@
             android:text="NULL"
             app:layout_constraintStart_toEndOf="@+id/textView"
             app:layout_constraintTop_toTopOf="@+id/textView" />
+
+        <Button
+            android:id="@+id/buttonConnect"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="28dp"
+            android:layout_marginBottom="88dp"
+            android:onClick="connect"
+            android:text="连接"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <EditText
+            android:id="@+id/editTextIPv6"
+            android:layout_width="255dp"
+            android:layout_height="49dp"
+            android:layout_marginEnd="28dp"
+            android:ems="10"
+            android:text="2402:f000:4:72:808::9a47"
+            app:layout_constraintEnd_toStartOf="@+id/buttonConnect"
+            app:layout_constraintTop_toTopOf="@+id/buttonConnect" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdio>
-#include <algorithm>
 #include <inttypes.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -90,9 +89,9 @@ namespace utils {
         sockaddr_in6 ret;
         memset((void*)&ret, 0, sizeof(ret));
         ret.sin6_family = AF_INET6;
-        v62uint16(ipv6, ret.sin6_addr.__in6_u.__u6_addr16);
-        switchEndian(ret.sin6_addr.__in6_u.__u6_addr16);
-        // inet_pton(AF_INET6, ipv6, &ret.sin6_addr);  // 这句话可以替代上面两句话
+        // v62uint16(ipv6, ret.sin6_addr.__in6_u.__u6_addr16);
+        // switchEndian(ret.sin6_addr.__in6_u.__u6_addr16);
+        inet_pton(AF_INET6, ipv6, &ret.sin6_addr);  // 这句话可以替代上面两句话
         ret.sin6_port = htons(port);
         return ret;
     }

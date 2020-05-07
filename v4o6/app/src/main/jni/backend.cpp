@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cstdio>
+#include <thread>
 #include "message.h"
 #include "utils.cpp"
 
@@ -19,6 +20,13 @@ Message readMessage(int fd) {
         printf("读取 data 失败\n");
     }
     return message;
+}
+
+// 主循环线程
+void mainLoop() {
+    while (true) {
+
+    }
 }
 
 // 创建 socket、连接服务器，并请求 IP 地址
@@ -64,6 +72,7 @@ int init(char *ipv6, int port, char *info) {
     message.print();
     printf("进入主循环...\n\n");
     strcpy(info, message.data);
+    std::thread t(mainLoop);
     return 0;
 }
 /*

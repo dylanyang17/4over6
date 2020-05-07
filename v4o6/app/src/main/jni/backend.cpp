@@ -1,9 +1,13 @@
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cstdio>
-#include <thread>
+#include <pthread.h>
+#include <unistd.h>
+#include <limits.h>
+#include <fcntl.h>
 #include "message.h"
 #include "utils.cpp"
 
@@ -70,9 +74,32 @@ int init(char *ipv6, int port, char *info) {
     }
     printf("IP 地址请求成功:\n");
     message.print();
+
+    char fifo_buf[100] = "TEST FIFO", fifo_path[] = "/data/user/0/com.yangyr17.v4o6/files/fifo";
+    // DEBUG: 如果已经存在文件了，则 mkfifo 将返回 -1
+    struct stat stats;
+    if (stat(fifo_path, &stats) >= 0) {
+        if (unlink(fifo_path) < 0) {
+            char tmp[] = "清理管道文件失败\n";
+            strcpy(info, tmp);
+            return -1;
+        }
+    }
+    if (mknod(fifo_path, S_IFIFO | 0666, 0) < 0) {
+        char tmp[] = "打开管道文件失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+    int fifo_handle = open(fifo_path, O_RDWR | O_CREAT | O_TRUNC);
+    int size = write(fifo_handle, fifo_buf, sizeof(fifo_buf));
+    char tmp[100];
+    sprintf(tmp, "%d", size);
+    strcpy(info, tmp);
+    close(fifo_handle);
+
+    // std::thread t(mainLoop);
     printf("进入主循环...\n\n");
-    strcpy(info, message.data);
-    std::thread t(mainLoop);
+    // strcpy(info, message.data);
     return 0;
 }
 /*

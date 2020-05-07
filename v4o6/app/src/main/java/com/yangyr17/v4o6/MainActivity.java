@@ -1,19 +1,32 @@
 package com.yangyr17.v4o6;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.net.VpnService;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
     private ServiceConnection connection = new ServiceConnection() {
@@ -47,6 +60,20 @@ public class MainActivity extends AppCompatActivity {
         thread.start();
     }
 
+    protected void checkPermissions(Activity activity) {
+        try {
+            //检测是否有写的权限
+            int permission = ActivityCompat.checkSelfPermission(activity,
+                    "android.permission.WRITE_EXTERNAL_STORAGE");
+            if (permission != PackageManager.PERMISSION_GRANTED) {
+                // 没有写的权限，去申请写的权限，会弹出对话框
+                ActivityCompat.requestPermissions(activity, PERMISSIONS_STORAGE, REQUEST_EXTERNAL_STORAGE);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
         textViewState = (TextView) findViewById(R.id.textViewState);
         editTextIPv6 = (EditText) findViewById(R.id.editTextIPv6);
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
+        checkPermissions(this);
     }
 
     @Override
@@ -78,29 +106,53 @@ public class MainActivity extends AppCompatActivity {
     // 点击连接/断开
     public void connect(View view) {
         if (buttonConnect.getText().equals("连接")) {
+//            写文件
+//            File extDir = Environment.getExternalStorageDirectory();
+//            File file = new File(extDir, "cmd_pipe");
+//            try {
+//                if (!file.exists()) {
+//                    boolean suc = file.createNewFile();
+//                    Log.i("createNewFile", String.valueOf(suc));
+//                }
+//                String s = "TESTTEST";
+//                byte []buf = s.getBytes();
+//                FileOutputStream fileOutputStream = new FileOutputStream(file);
+//                BufferedOutputStream out = new BufferedOutputStream(fileOutputStream);
+//                out.write(buf, 0, buf.length);
+//                out.flush();
+//                out.close();
+//                Log.i("fifo", "suc");
+//            } catch (FileNotFoundException e) {
+//                Log.e("fifo", "FileNotFoundException");
+//            } catch (IOException e) {
+//                Log.e("fifo", "IOException");
+//            }
             // 进行连接
+            startWorker();  // NOTE: delete
             String info = JNIUtils.connectToServer();
+
             if (info.charAt(0) >= '0' && info.charAt(0) <= '9') {
                 // 成功
-                textViewState.setText("成功连接服务器");
-                String []tmp = info.split(" ");
-                ipv4 = tmp[0];
-                route = tmp[1];
-                dns1 = tmp[2];
-                dns2 = tmp[3];
-                dns3 = tmp[4];
-                Log.i("ipv4", ipv4);
-                Log.i("route", route);
-                Log.i("dns1", dns1);
-                Log.i("dns2", dns2);
-                Log.i("dns3", dns3);
-                // 请求建立 VPN 连接，在 result 为 OK 时 setText("断开")
-                startVpn();
+//                textViewState.setText("成功连接服务器");
+//                String []tmp = info.split(" ");
+//                ipv4 = tmp[0];
+//                route = tmp[1];
+//                dns1 = tmp[2];
+//                dns2 = tmp[3];
+//                dns3 = tmp[4];
+//                Log.i("ipv4", ipv4);
+//                Log.i("route", route);
+//                Log.i("dns1", dns1);
+//                Log.i("dns2", dns2);
+//                Log.i("dns3", dns3);
+//                // 请求建立 VPN 连接，在 result 为 OK 时 setText("断开")
+//                startVpn();
                 // startWorker();
+                textViewState.setText(info);
             } else {
                 // 失败
                 textViewState.setText(info);
-                myVpnService.stopVpn();
+                // textViewState.setText(getFilesDir().getAbsolutePath());
             }
         } else {
             // 断开连接
@@ -112,6 +164,11 @@ public class MainActivity extends AppCompatActivity {
             textViewState.setText("已断开");
         }
     }
+
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            "android.permission.READ_EXTERNAL_STORAGE",
+            "android.permission.WRITE_EXTERNAL_STORAGE" };
 
     public boolean isBound = false;
     public MyVpnService myVpnService;

@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
             textViewState.setText(info);
         }
         // 请求建立 VPN 连接
-        // startVpn();
+        startVpn();
         // startWorker();
     }
 
@@ -62,10 +62,14 @@ public class MainActivity extends AppCompatActivity {
         if (result == RESULT_OK) {
             // 用户同意建立 VPN 连接
             Intent intent = new Intent(MainActivity.this, MyVpnService.class);
+            intent.putExtra("ipv4", ipv4);
+            intent.putExtra("route", route);
+            intent.putExtra("dns1", dns1);
+            intent.putExtra("dns2", dns2);
+            intent.putExtra("dns3", dns3);
             startService(intent);
         }
     }
-
     public String ipv4, route, dns1, dns2, dns3;  // 通过 101 ip 响应获得
     public TextView textViewTime, textViewState;
     public WorkHandler handler;

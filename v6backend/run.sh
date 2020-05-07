@@ -1,2 +1,4 @@
 bash build.sh
-./bin/V6BACKEND
+if [ $? -eq 0 ]; then
+    ./bin/V6BACKEND
+fi

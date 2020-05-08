@@ -11,7 +11,7 @@
 #include "message.h"
 #include "utils.cpp"
 
-Message readMessage(int fd) {
+Message readMessageFromSocket(int fd) {
     Message message;
     if (recv(fd, &message.length, 4, 0) < 4) {
         printf("读取 length 失败\n");
@@ -31,6 +31,14 @@ void mainLoop() {
     while (true) {
 
     }
+}
+
+void writeMessageToFifo(Message message, int fifoHandle) {
+    // 按照大端序(网络字节序)传输
+    int len = htonl(message.length);
+    write(fifoHandle, &len, 4);
+    write(fifoHandle, &message.type, 1);
+    write(fifoHandle, message.data, message.length - 5);
 }
 
 // 创建 socket、连接服务器，并请求 IP 地址
@@ -66,7 +74,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *statFifoPath, char *info)
         strcpy(info, tmp);
         return -1;
     }
-    message = readMessage(fd);
+    message = readMessageFromSocket(fd);
     if (message.type != 101) {
         char tmp[] = "IP 地址响应格式错误\n";
         strcpy(info, tmp);
@@ -75,10 +83,9 @@ int init(char *ipv6, int port, char *ipFifoPath, char *statFifoPath, char *info)
     printf("IP 地址请求成功:\n");
     message.print();
 
-    char fifo_buf[100] = "TEST FIFO";
     // DEBUG: 如果已经存在文件了，则 mkfifo 将返回 -1
-    struct stat stats;
-    /*if (stat(fifo_path, &stats) >= 0) {
+    /*struct stat stats;
+    if (stat(fifo_path, &stats) >= 0) {
         if (unlink(fifo_path) < 0) {
             char tmp[] = "清理管道文件失败\n";
             strcpy(info, tmp);
@@ -96,10 +103,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *statFifoPath, char *info)
         strcpy(info, tmp);
         return -1;
     }
-    int size = write(ipFifoHandle, fifo_buf, sizeof(fifo_buf));
-    char tmp[100];
-    sprintf(tmp, "%d", size);
-    strcpy(info, tmp);
+    writeMessageToFifo(message, ipFifoHandle);
     while(true) {
     ;
     }

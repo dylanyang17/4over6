@@ -41,7 +41,7 @@ public class WorkRunnable implements Runnable {
         }
     }
 
-    boolean readMsg(File fifo, byte[] buf, int len, Msg ret) {
+    boolean readMsg(File fifo, byte[] buf, Msg ret) {
         try {
             FileInputStream fileInputStream = new FileInputStream(fifo);
             BufferedInputStream in = new BufferedInputStream(fileInputStream);
@@ -54,6 +54,7 @@ public class WorkRunnable implements Runnable {
             ret.length = byteToInt(buf);
             // type
             readLen = in.read(buf, 0, 1);
+            Log.i("readMsg", "length: " + ret.length);
             if (readLen < 1) {
                 Log.e("readMsg", "读入 type 失败");
                 return false;
@@ -67,20 +68,18 @@ public class WorkRunnable implements Runnable {
                     Log.e("readMsg", "读入 data 失败");
                     return false;
                 }
-                byte[] tmp = new byte[expectLen];
-                tmp = buf;
-                ret.data = new String(tmp);
+                ret.data = new String(buf, 0, expectLen);
             }
             in.close();
-            Log.i("fifo", "Suc to read, len: " + ret.length + ", type: "
+            Log.i("readMsg", "Suc to read, len: " + ret.length + ", type: "
                     + ret.type + ", data: " + ret.data);
             return true;
         } catch (FileNotFoundException e) {
-            Log.e("fifo", "FileNotFoundException");
+            Log.e("readMsg", "FileNotFoundException");
         } catch (IOException e) {
-            Log.e("fifo", "IOException");
+            Log.e("readMsg", "IOException");
         } catch (Exception e) {
-            Log.e("fifo", e.toString());
+            Log.e("readMsg", e.toString());
         }
         return false;
     }
@@ -101,7 +100,8 @@ public class WorkRunnable implements Runnable {
                 Log.i("worker", "ip 管道暂不存在");
             } else {
                 // 读取 ip 管道
-
+                Msg msg = new Msg();
+                readMsg(ipFifoFile, buffer, msg);
             }
 //            Message message = Message.obtain();
 //            handler.sendMessage(message);

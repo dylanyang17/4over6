@@ -137,29 +137,29 @@ public class MainActivity extends AppCompatActivity {
                     Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, statFifoPath));
             backendThread.start();
 
-            if (info.charAt(0) >= '0' && info.charAt(0) <= '9') {
-                // 成功
-//                textViewState.setText("成功连接服务器");
-//                String []tmp = info.split(" ");
-//                ipv4 = tmp[0];
-//                route = tmp[1];
-//                dns1 = tmp[2];
-//                dns2 = tmp[3];
-//                dns3 = tmp[4];
-//                Log.i("ipv4", ipv4);
-//                Log.i("route", route);
-//                Log.i("dns1", dns1);
-//                Log.i("dns2", dns2);
-//                Log.i("dns3", dns3);
-//                // 请求建立 VPN 连接，在 result 为 OK 时 setText("断开")
-//                startVpn();
-                // startWorker();
-                textViewState.setText(info);
-            } else {
-                // 失败
-                textViewState.setText(info);
-                // textViewState.setText(getFilesDir().getAbsolutePath());
-            }
+//            if (info.charAt(0) >= '0' && info.charAt(0) <= '9') {
+//                // 成功
+////                textViewState.setText("成功连接服务器");
+////                String []tmp = info.split(" ");
+////                ipv4 = tmp[0];
+////                route = tmp[1];
+////                dns1 = tmp[2];
+////                dns2 = tmp[3];
+////                dns3 = tmp[4];
+////                Log.i("ipv4", ipv4);
+////                Log.i("route", route);
+////                Log.i("dns1", dns1);
+////                Log.i("dns2", dns2);
+////                Log.i("dns3", dns3);
+////                // 请求建立 VPN 连接，在 result 为 OK 时 setText("断开")
+////                startVpn();
+//                // startWorker();
+//                textViewState.setText(info);
+//            } else {
+//                // 失败
+//                textViewState.setText(info);
+//                // textViewState.setText(getFilesDir().getAbsolutePath());
+//            }
         } else {
             // 断开连接
             Log.i("lala", "try to stop");

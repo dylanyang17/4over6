@@ -48,8 +48,8 @@ public class MainActivity extends AppCompatActivity {
     protected void startWorker() {
         textViewTime.setText("0");
         handler = new WorkHandler(this, getMainLooper());
-        Thread thread = new Thread(new WorkRunnable(handler, ipFifoPath));
-        thread.start();
+        wordThread = new Thread(new WorkRunnable(handler, ipFifoPath));
+        wordThread.start();
     }
 
     protected void checkPermissions(Activity activity) {
@@ -130,9 +130,12 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("connect", "清理管道失败");
                 }
             }
-            startWorker();  // NOTE: delete
-            String info = JNIUtils.connectToServer(editTextIPv6.getText().toString(),
-                    Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, statFifoPath);
+            Log.i("worker", "启动计时器线程");
+            startWorker();
+            Log.i("backend", "启动 C++ 后台线程");
+            backendThread = new Thread(new BackendRunnable(editTextIPv6.getText().toString(),
+                    Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, statFifoPath));
+            backendThread.start();
 
             if (info.charAt(0) >= '0' && info.charAt(0) <= '9') {
                 // 成功
@@ -184,5 +187,6 @@ public class MainActivity extends AppCompatActivity {
     public Button buttonConnect;
     public Intent intentVpnService;
     public WorkHandler handler;
+    public Thread wordThread, backendThread;
 }
 

@@ -9,10 +9,10 @@ extern "C" {
 #endif
 /*
  * Class:     com_yangyr17_v4o6_JNIUtils
- * Method:    connectToServer
+ * Method:    startBackend
  * Signature: (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)Ljava/lang/String;
  */
-JNIEXPORT jstring JNICALL Java_com_yangyr17_v4o6_JNIUtils_connectToServer
+JNIEXPORT jstring JNICALL Java_com_yangyr17_v4o6_JNIUtils_startBackend
   (JNIEnv *, jclass, jstring, jint, jstring, jstring);
 
 #ifdef __cplusplus

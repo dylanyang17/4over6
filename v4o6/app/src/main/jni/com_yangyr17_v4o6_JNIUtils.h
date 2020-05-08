@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     com_yangyr17_v4o6_JNIUtils
  * Method:    startBackend
- * Signature: (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
  */
-JNIEXPORT void JNICALL Java_com_yangyr17_v4o6_JNIUtils_startBackend
-  (JNIEnv *, jclass, jstring, jint, jstring, jstring);
+JNIEXPORT jstring JNICALL Java_com_yangyr17_v4o6_JNIUtils_startBackend
+  (JNIEnv *, jclass, jstring, jint, jstring, jstring, jstring);
 
 #ifdef __cplusplus
 }

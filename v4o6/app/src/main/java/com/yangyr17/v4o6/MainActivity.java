@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
         checkPermissions(this);
         ipFifoPath = getFilesDir().getAbsolutePath() + "/ip_fifo";
+        tunFifoPath = getFilesDir().getAbsolutePath() + "/tun_fifo";
         statFifoPath = getFilesDir().getAbsolutePath() + "/stat_fifo";
     }
 
@@ -134,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
             startWorker();
             Log.i("backend", "启动 C++ 后台线程");
             backendThread = new Thread(new BackendRunnable(editTextIPv6.getText().toString(),
-                    Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, statFifoPath));
+                    Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, tunFifoPath, statFifoPath));
             backendThread.start();
 
 //            if (info.charAt(0) >= '0' && info.charAt(0) <= '9') {
@@ -179,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
     public boolean isBound = false;
     public MyVpnService myVpnService;
 
-    public String ipFifoPath, statFifoPath;
+    public String ipFifoPath, tunFifoPath, statFifoPath;
 
     public String ipv4, route, dns1, dns2, dns3;  // 通过 101 ip 响应获得
     public TextView textViewTime, textViewState;

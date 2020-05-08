@@ -41,10 +41,19 @@ void writeMessageToFifo(Message message, int fifoHandle) {
     write(fifoHandle, message.data, message.length - 5);
 }
 
+// 从 Fifo 中读取 Message
+Message readMessageFromFifo(int fifoHandle) {
+    Message message;
+    read(fifoHandle, &message.len, 4);
+    read(fifoHandle, &message.type, 1);
+    read(fifoHandle, message.data, message.len - 5);  // TODO：有可能崩溃
+    return message;
+}
+
 // 创建 socket、连接服务器，并请求 IP 地址
 // ret 为返回的字符串信息，若失败则对应位失败信息，若成功则对应为 "IP Route DNS DNS DNS" 格式的信息
 // 成功时返回 0，失败返回 -1
-int init(char *ipv6, int port, char *ipFifoPath, char *statFifoPath, char *info) {
+int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *info) {
     // 创建 socket
     int fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -105,7 +114,8 @@ int init(char *ipv6, int port, char *ipFifoPath, char *statFifoPath, char *info)
     }
     writeMessageToFifo(message, ipFifoHandle);
     while(true) {
-    ;
+
+        ;
     }
     close(ipFifoHandle);
 
@@ -114,12 +124,3 @@ int init(char *ipv6, int port, char *ipFifoPath, char *statFifoPath, char *info)
     // strcpy(info, message.data);
     return 0;
 }
-/*
-int main() {
-    const char ipv6[] = "2402:f000:4:72:808::9a47";
-    const int PORT = 5678;
-    init(const_cast<char*>(ipv6), PORT);
-    
-    return 0;
-}*/
-

@@ -43,7 +43,7 @@ public class MyVpnService extends VpnService {
                 .setSession(Constants.session);
         tun = builder.establish();
 
-        // TEST：写管道
+        // 写管道，将 tunFd 发送给后台
         int tunFd = tun.getFd();
         Log.i("MyVpnService", "tunFd: " + tunFd);
         File tunFifoFile = new File(tunFifoPath);

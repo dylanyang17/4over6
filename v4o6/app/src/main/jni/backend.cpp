@@ -130,16 +130,15 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     }
     message = readMessageFromFifo(tunFifoHandle);
     close(tunFifoHandle);
-    char tmp[100];
-    sprintf(tmp, "%d", message.length);
-    strcpy(info, message.data);
-    return 0;
+    int tunFd;
+    sscanf(message.data, "%d", &tunFd);
+    close(ipFifoHandle);
+    close(tunFifoHandle);
 
     // std::thread t(mainLoop);
     printf("进入主循环...\n\n");
     // strcpy(info, message.data);
 
-    close(ipFifoHandle);
-    close(tunFifoHandle);
+
     return 0;
 }

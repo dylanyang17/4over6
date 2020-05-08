@@ -16,9 +16,10 @@ import java.util.Timer;
 import java.util.logging.LogRecord;
 
 public class WorkRunnable implements Runnable {
-    WorkRunnable(WorkHandler handler) {
+    WorkRunnable(WorkHandler handler, String ipFifoPath) {
         super();
         this.handler = handler;
+        this.ipFifoPath = ipFifoPath;
     }
 
     @SuppressWarnings("InfiniteLoopStatement")
@@ -33,7 +34,7 @@ public class WorkRunnable implements Runnable {
             // 读管道
             // TODO: 暂时硬编码
             Log.i("worker", "start");
-            String path = "/data/user/0/com.yangyr17.v4o6/files/fifo";
+            String path = ipFifoPath;
             File file = new File(path);
             if (!file.exists()) {
                 Log.e("worker", "文件不存在");
@@ -62,4 +63,5 @@ public class WorkRunnable implements Runnable {
     }
 
     private WorkHandler handler;
+    public String ipFifoPath;
 }

@@ -4,7 +4,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import android.app.Activity;
-import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -12,7 +11,6 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.net.VpnService;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.View;
@@ -20,13 +18,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
     private ServiceConnection connection = new ServiceConnection() {
@@ -56,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
     protected void startWorker() {
         textViewTime.setText("0");
         handler = new WorkHandler(this, getMainLooper());
-        Thread thread = new Thread(new WorkRunnable(handler));
+        Thread thread = new Thread(new WorkRunnable(handler, ipFifoPath));
         thread.start();
     }
 
@@ -83,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
         editTextIPv6 = (EditText) findViewById(R.id.editTextIPv6);
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
         checkPermissions(this);
+        ipFifoPath = getFilesDir().getAbsolutePath() + "/ip_fifo";
     }
 
     @Override
@@ -128,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
 //                Log.e("fifo", "IOException");
 //            }
             // 进行连接
-            File file = new File("/data/user/0/com.yangyr17.v4o6/files/fifo");
+            File file = new File(ipFifoPath);
             if (file.exists()) {
                 Log.i("connect", "清理管道");
                 if (!file.delete()) {
@@ -136,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             startWorker();  // NOTE: delete
-            String info = JNIUtils.connectToServer();
+            String info = JNIUtils.connectToServer(ipFifoPath);
 
             if (info.charAt(0) >= '0' && info.charAt(0) <= '9') {
                 // 成功
@@ -179,6 +172,8 @@ public class MainActivity extends AppCompatActivity {
 
     public boolean isBound = false;
     public MyVpnService myVpnService;
+
+    public String ipFifoPath;
 
     public String ipv4, route, dns1, dns2, dns3;  // 通过 101 ip 响应获得
     public TextView textViewTime, textViewState;

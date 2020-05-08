@@ -102,39 +102,9 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         }
     }*/
 
-    if (mkfifo(tunFifoPath, 0666) < 0) {
-        char tmp[] = "创建管道失败\n";
-        strcpy(info, tmp);
-        return -1;
-    }
-    int tunFifoHandle;
-    if ((tunFifoHandle = open(tunFifoPath, O_RDONLY)) < 0) {
-        char tmp[] = "打开 tunFifo 失败\n";
-        strcpy(info, tmp);
-        return -1;
-    }
-    while (true) {
-        int length;
-        int size = read(tunFifoHandle, &length, 4);
-        if (size < 0) {
-            char tmp[] = "读取 tunFifo 失败\n";
-            strcpy(info, tmp);
-            return -1;
-        }
-        else if (size > 0) {
-            char tmp[100];
-            sprintf(tmp, "%d", length);
-            strcpy(info, tmp);
-            close(tunFifoHandle);
-            return 0;
-        } else {
-            continue;
-        }
-    }
-    return 0;
-
+    // 将 ipv4, route, dns 等信息写入 ipFifo 管道
     if (mkfifo(ipFifoPath, 0666) < 0) {
-        char tmp[] = "创建管道失败\n";
+        char tmp[] = "创建 ipFifo 管道失败\n";
         strcpy(info, tmp);
         return -1;
     }
@@ -145,14 +115,30 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         return -1;
     }
     writeMessageToFifo(message, ipFifoHandle);
-    while(true) {
-
-        ;
-    }
     close(ipFifoHandle);
+
+    // 读取 tunFifo 管道获得 tun 描述符
+    if (mkfifo(tunFifoPath, 0666) < 0) {
+        char tmp[] = "创建 tunFifo 管道失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+    int tunFifoHandle;
+    if ((tunFifoHandle = open(tunFifoPath, O_RDONLY)) < 0) {
+        char tmp[] = "打开 tunFifo 失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+    message = readMessageFromFifo(tunFifoHandle);
+    char tmp[100];
+    sprintf(tmp, "%d", message.length);
+    strcpy(info, message.data);
+    return 0;
 
     // std::thread t(mainLoop);
     printf("进入主循环...\n\n");
     // strcpy(info, message.data);
+
+    close(tunFifoHandle);
     return 0;
 }

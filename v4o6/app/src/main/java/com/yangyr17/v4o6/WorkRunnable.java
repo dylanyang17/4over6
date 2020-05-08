@@ -133,7 +133,7 @@ public class WorkRunnable implements Runnable {
             // TEST：写管道
             File tunFifoFile = new File(tunFifoPath);
             Msg msg = new Msg();
-            msg.length = 5;
+            msg.length = 8;
             msg.type = Constants.TYPE_TUN;
             msg.data = "123";
             writeMsg(tunFifoFile, msg);

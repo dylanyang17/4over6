@@ -73,9 +73,11 @@ public class MainActivity extends AppCompatActivity {
         textViewTime = (TextView) findViewById(R.id.textViewTime);
         textViewState = (TextView) findViewById(R.id.textViewState);
         editTextIPv6 = (EditText) findViewById(R.id.editTextIPv6);
+        editTextPort = (EditText) findViewById(R.id.editTextPort);
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
         checkPermissions(this);
         ipFifoPath = getFilesDir().getAbsolutePath() + "/ip_fifo";
+        statFifoPath = getFilesDir().getAbsolutePath() + "/stat_fifo";
     }
 
     @Override
@@ -121,15 +123,16 @@ public class MainActivity extends AppCompatActivity {
 //                Log.e("fifo", "IOException");
 //            }
             // 进行连接
-            File file = new File(ipFifoPath);
-            if (file.exists()) {
+            File ipFifoFile = new File(ipFifoPath), statFifoFile = new File(statFifoPath);
+            if (ipFifoFile.exists() || statFifoFile.exists()) {
                 Log.i("connect", "清理管道");
-                if (!file.delete()) {
+                if ((ipFifoFile.exists() && !ipFifoFile.delete()) || (statFifoFile.exists() && !statFifoFile.delete())) {
                     Log.e("connect", "清理管道失败");
                 }
             }
             startWorker();  // NOTE: delete
-            String info = JNIUtils.connectToServer(ipFifoPath);
+            String info = JNIUtils.connectToServer(editTextIPv6.getText().toString(),
+                    Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, statFifoPath);
 
             if (info.charAt(0) >= '0' && info.charAt(0) <= '9') {
                 // 成功
@@ -173,11 +176,11 @@ public class MainActivity extends AppCompatActivity {
     public boolean isBound = false;
     public MyVpnService myVpnService;
 
-    public String ipFifoPath;
+    public String ipFifoPath, statFifoPath;
 
     public String ipv4, route, dns1, dns2, dns3;  // 通过 101 ip 响应获得
     public TextView textViewTime, textViewState;
-    public EditText editTextIPv6;
+    public EditText editTextIPv6, editTextPort;
     public Button buttonConnect;
     public Intent intentVpnService;
     public WorkHandler handler;

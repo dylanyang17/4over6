@@ -36,7 +36,7 @@ void mainLoop() {
 // 创建 socket、连接服务器，并请求 IP 地址
 // ret 为返回的字符串信息，若失败则对应位失败信息，若成功则对应为 "IP Route DNS DNS DNS" 格式的信息
 // 成功时返回 0，失败返回 -1
-int init(char *ipv6, int port, char *info) {
+int init(char *ipv6, int port, char *ipFifoPath, char *statFifoPath, char *info) {
     // 创建 socket
     int fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -75,7 +75,7 @@ int init(char *ipv6, int port, char *info) {
     printf("IP 地址请求成功:\n");
     message.print();
 
-    char fifo_buf[100] = "TEST FIFO", fifo_path[] = "/data/user/0/com.yangyr17.v4o6/files/fifo";
+    char fifo_buf[100] = "TEST FIFO";
     // DEBUG: 如果已经存在文件了，则 mkfifo 将返回 -1
     struct stat stats;
     /*if (stat(fifo_path, &stats) >= 0) {
@@ -85,25 +85,25 @@ int init(char *ipv6, int port, char *info) {
             return -1;
         }
     }*/
-    if (mkfifo(fifo_path, 0666) < 0) {
+    if (mkfifo(ipFifoPath, 0666) < 0) {
         char tmp[] = "创建管道失败\n";
         strcpy(info, tmp);
         return -1;
     }
-    int fifo_handle;
-    if((fifo_handle = open(fifo_path, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
+    int ipFifoHandle;
+    if((ipFifoHandle = open(ipFifoPath, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
         char tmp[] = "打开管道文件失败\n";
         strcpy(info, tmp);
         return -1;
     }
-    int size = write(fifo_handle, fifo_buf, sizeof(fifo_buf));
+    int size = write(ipFifoHandle, fifo_buf, sizeof(fifo_buf));
     char tmp[100];
     sprintf(tmp, "%d", size);
     strcpy(info, tmp);
     while(true) {
     ;
     }
-    close(fifo_handle);
+    close(ipFifoHandle);
 
     // std::thread t(mainLoop);
     printf("进入主循环...\n\n");

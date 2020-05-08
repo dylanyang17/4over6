@@ -22,15 +22,15 @@ void jstringToChar(JNIEnv* env, jstring jstr, char* rtn)
 }
 
 JNIEXPORT jstring JNICALL Java_com_yangyr17_v4o6_JNIUtils_connectToServer
-  (JNIEnv *env, jclass thiz, jstring jipFifoPath)
+  (JNIEnv *env, jclass thiz, jstring jipv6, jint jport, jstring jipFifoPath, jstring jstatFifoPath)
 {
     // TODO: 之后可以改为从前台传入
-    const char ipv6[] = "2402:f000:4:72:808::9a47";
-    const int PORT = 5678;
-    char ipFifoPath[100];
+    char ipv6[100], ipFifoPath[100], statFifoPath[100];
+    int port = (int)jport;
+    jstringToChar(env, jipv6, ipv6);
     jstringToChar(env, jipFifoPath, ipFifoPath);
-    return env->NewStringUTF(ipFifoPath);
-    //char ret[200];
-    //init(const_cast<char*>(ipv6), PORT, ret);
-    //return env->NewStringUTF(ret);
+    jstringToChar(env, jstatFifoPath, statFifoPath);
+    char ret[200];
+    init(ipv6, port, ipFifoPath, statFifoPath, ret);
+    return env->NewStringUTF(ret);
 }

@@ -9,17 +9,19 @@ import android.os.Handler;
 import android.util.Log;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Timer;
 import java.util.logging.LogRecord;
 
 public class WorkRunnable implements Runnable {
-    private class Msg {
+    public class Msg {
         int length;
         byte type;
         String data;
@@ -85,6 +87,24 @@ public class WorkRunnable implements Runnable {
         return false;
     }
 
+    boolean writeMsg(File fifo, Msg msg) {
+        try {
+            FileOutputStream fileOutputStream = new FileOutputStream(fifo);
+            BufferedOutputStream out = new BufferedOutputStream(fileOutputStream);
+            out.write(msg.length);
+            byte []tmp = new byte[1];
+            tmp[0] = msg.type;
+            out.write(tmp, 0, 1);
+            out.write(msg.data.getBytes());
+            // out.write(arr, 0, arr.length);//arr 是存放数据的 byte 类型数组
+            out.close();
+            return true;
+        } catch (Exception e) {
+            Log.e("writeMsg", e.toString());
+            return false;
+        }
+    }
+
     @SuppressWarnings("InfiniteLoopStatement")
     @Override
     public void run() {
@@ -95,6 +115,7 @@ public class WorkRunnable implements Runnable {
             } catch (InterruptedException e) {
                 Log.w("WorkRunnable", "Interrupted Exception while sleeping.");
             }
+            Log.d("WorkRunnable", "timer");
             // 读 ip 管道
             if (!hasIP) {
                 File ipFifoFile = new File(ipFifoPath);
@@ -116,10 +137,17 @@ public class WorkRunnable implements Runnable {
                         message.obj = msg;
                         handler.sendMessage(message);
                     }
+                    msg.length = 5;
+                    msg.type = Constants.TYPE_TUN;
+                    msg.data = "123";
+                    writeMsg(ipFifoFile, msg);
                 }
+
+            } else {
+                // 已经开启了 vpn
+                Message message = Message.obtain();
+                handler.sendMessage(message);
             }
-//            Message message = Message.obtain();
-//            handler.sendMessage(message);
         }
     }
 

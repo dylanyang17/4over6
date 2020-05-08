@@ -6,7 +6,7 @@ public final class Constants {
 
     static boolean isMessageType(int type) {
         // TODO: 若有新类型则将修改
-        return type >= TYPE_IP_REQUEST && type <= TYPE_BEAT;
+        return type >= TYPE_IP_REQUEST && type <= TYPE_TUN;
     }
 
     static final byte TYPE_IP_REQUEST = 100;
@@ -14,4 +14,5 @@ public final class Constants {
     static final byte TYPE_PACKAGE_REQUEST = 102;
     static final byte TYPE_PACKAGE_RESPONSE = 103;
     static final byte TYPE_BEAT = 104;
+    static final byte TYPE_TUN = 105;
 }

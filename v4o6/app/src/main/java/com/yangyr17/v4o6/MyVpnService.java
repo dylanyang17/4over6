@@ -9,6 +9,10 @@ import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
+import java.io.File;
+
+import static com.yangyr17.v4o6.Msg.writeMsg;
+
 public class MyVpnService extends VpnService {
     public ParcelFileDescriptor tun;
     private  MyVpnBinder binder = new MyVpnBinder();
@@ -28,6 +32,7 @@ public class MyVpnService extends VpnService {
         String dns1 = bundle.getString("dns1");
         String dns2 = bundle.getString("dns2");
         String dns3 = bundle.getString("dns3");
+        String tunFifoPath = bundle.getString("tunFifoPath");
         Builder builder = new Builder();
         builder.setMtu(Constants.mtu)
                 .addAddress(ipv4, 24)
@@ -37,6 +42,18 @@ public class MyVpnService extends VpnService {
                 .addDnsServer(dns3)
                 .setSession(Constants.session);
         tun = builder.establish();
+
+        // TEST：写管道
+        int tunFd = tun.getFd();
+        Log.i("MyVpnService", "tunFd: " + tunFd);
+        File tunFifoFile = new File(tunFifoPath);
+        Msg msg = new Msg();
+
+        msg.type = Constants.TYPE_TUN;
+        msg.data = String.valueOf(tunFd);
+        msg.length = 5 + msg.data.length();
+        writeMsg(tunFifoFile, msg);
+
         return START_NOT_STICKY;
     }
 

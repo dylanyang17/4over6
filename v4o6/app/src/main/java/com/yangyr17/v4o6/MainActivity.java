@@ -95,16 +95,9 @@ public class MainActivity extends AppCompatActivity {
             intentVpnService.putExtra("dns1", dns1);
             intentVpnService.putExtra("dns2", dns2);
             intentVpnService.putExtra("dns3", dns3);
+            intentVpnService.putExtra("tunFifoPath", tunFifoPath);
             startService(intentVpnService);
             bindService(intentVpnService, connection, Context.BIND_AUTO_CREATE);
-
-            // TEST：写管道
-            File tunFifoFile = new File(tunFifoPath);
-            Msg msg = new Msg();
-            msg.length = 8;
-            msg.type = Constants.TYPE_TUN;
-            msg.data = "123";
-            writeMsg(tunFifoFile, msg);
 
             buttonConnect.setText("断开");
         }

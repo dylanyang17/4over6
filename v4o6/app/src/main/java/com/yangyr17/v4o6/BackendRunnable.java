@@ -1,5 +1,7 @@
 package com.yangyr17.v4o6;
 
+import android.util.Log;
+
 public class BackendRunnable implements Runnable {
     public BackendRunnable(String ipv6, int port, String ipFifoPath, String tunFifoPath, String statFifoPath) {
         super();
@@ -12,7 +14,8 @@ public class BackendRunnable implements Runnable {
 
     @Override
     public void run() {
-        JNIUtils.startBackend(ipv6, port, ipFifoPath, tunFifoPath, statFifoPath);
+        String ret = JNIUtils.startBackend(ipv6, port, ipFifoPath, tunFifoPath, statFifoPath);
+        Log.i("BackendRunnable", "Finish: " + ret);
     }
 
     private String ipv6, ipFifoPath, tunFifoPath, statFifoPath;

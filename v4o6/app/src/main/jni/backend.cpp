@@ -101,6 +101,10 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
             return -1;
         }
     }*/
+
+
+    return 0;
+
     if (mkfifo(ipFifoPath, 0666) < 0) {
         char tmp[] = "创建管道失败\n";
         strcpy(info, tmp);

@@ -124,10 +124,12 @@ public class MainActivity extends AppCompatActivity {
 //                Log.e("fifo", "IOException");
 //            }
             // 进行连接
-            File ipFifoFile = new File(ipFifoPath), statFifoFile = new File(statFifoPath);
-            if (ipFifoFile.exists() || statFifoFile.exists()) {
+            File ipFifoFile = new File(ipFifoPath), tunFifoFile = new File(tunFifoPath), statFifoFile = new File(statFifoPath);
+            if (ipFifoFile.exists() || tunFifoFile.exists() || statFifoFile.exists()) {
                 Log.i("connect", "清理管道");
-                if ((ipFifoFile.exists() && !ipFifoFile.delete()) || (statFifoFile.exists() && !statFifoFile.delete())) {
+                if ((ipFifoFile.exists() && !ipFifoFile.delete()) ||
+                        (tunFifoFile.exists() && !tunFifoFile.delete()) ||
+                        (statFifoFile.exists() && !statFifoFile.delete())) {
                     Log.e("connect", "清理管道失败");
                 }
             }

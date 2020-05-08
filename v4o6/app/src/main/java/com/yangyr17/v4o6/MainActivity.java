@@ -20,6 +20,8 @@ import android.widget.TextView;
 
 import java.io.File;
 
+import static com.yangyr17.v4o6.Msg.writeMsg;
+
 public class MainActivity extends AppCompatActivity {
     private ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -95,6 +97,15 @@ public class MainActivity extends AppCompatActivity {
             intentVpnService.putExtra("dns3", dns3);
             startService(intentVpnService);
             bindService(intentVpnService, connection, Context.BIND_AUTO_CREATE);
+
+            // TEST：写管道
+            File tunFifoFile = new File(tunFifoPath);
+            Msg msg = new Msg();
+            msg.length = 8;
+            msg.type = Constants.TYPE_TUN;
+            msg.data = "123";
+            writeMsg(tunFifoFile, msg);
+
             buttonConnect.setText("断开");
         }
     }
@@ -102,27 +113,6 @@ public class MainActivity extends AppCompatActivity {
     // 点击连接/断开
     public void connect(View view) {
         if (buttonConnect.getText().equals("连接")) {
-//            写文件
-//            File extDir = Environment.getExternalStorageDirectory();
-//            File file = new File(extDir, "cmd_pipe");
-//            try {
-//                if (!file.exists()) {
-//                    boolean suc = file.createNewFile();
-//                    Log.i("createNewFile", String.valueOf(suc));
-//                }
-//                String s = "TESTTEST";
-//                byte []buf = s.getBytes();
-//                FileOutputStream fileOutputStream = new FileOutputStream(file);
-//                BufferedOutputStream out = new BufferedOutputStream(fileOutputStream);
-//                out.write(buf, 0, buf.length);
-//                out.flush();
-//                out.close();
-//                Log.i("fifo", "suc");
-//            } catch (FileNotFoundException e) {
-//                Log.e("fifo", "FileNotFoundException");
-//            } catch (IOException e) {
-//                Log.e("fifo", "IOException");
-//            }
             // 进行连接
             File ipFifoFile = new File(ipFifoPath), tunFifoFile = new File(tunFifoPath), statFifoFile = new File(statFifoPath);
             if (ipFifoFile.exists() || tunFifoFile.exists() || statFifoFile.exists()) {
@@ -139,30 +129,6 @@ public class MainActivity extends AppCompatActivity {
             backendThread = new Thread(new BackendRunnable(editTextIPv6.getText().toString(),
                     Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, tunFifoPath, statFifoPath));
             backendThread.start();
-
-//            if (info.charAt(0) >= '0' && info.charAt(0) <= '9') {
-//                // 成功
-////                textViewState.setText("成功连接服务器");
-////                String []tmp = info.split(" ");
-////                ipv4 = tmp[0];
-////                route = tmp[1];
-////                dns1 = tmp[2];
-////                dns2 = tmp[3];
-////                dns3 = tmp[4];
-////                Log.i("ipv4", ipv4);
-////                Log.i("route", route);
-////                Log.i("dns1", dns1);
-////                Log.i("dns2", dns2);
-////                Log.i("dns3", dns3);
-////                // 请求建立 VPN 连接，在 result 为 OK 时 setText("断开")
-////                startVpn();
-//                // startWorker();
-//                textViewState.setText(info);
-//            } else {
-//                // 失败
-//                textViewState.setText(info);
-//                // textViewState.setText(getFilesDir().getAbsolutePath());
-//            }
         } else {
             // 断开连接
             Log.i("lala", "try to stop");

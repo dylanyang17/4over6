@@ -19,7 +19,7 @@ public class WorkHandler extends Handler {
         MainActivity mainActivity = activity.get();
         if (message.what == Constants.TYPE_IP_RESPONSE) {
             // 收到 IP 响应，连接 vpn
-            WorkRunnable.Msg msg = (WorkRunnable.Msg) message.obj;
+            Msg msg = (Msg) message.obj;
             String []tmp = msg.data.split(" ");
             mainActivity.ipv4 = tmp[0];
             mainActivity.route = tmp[1];

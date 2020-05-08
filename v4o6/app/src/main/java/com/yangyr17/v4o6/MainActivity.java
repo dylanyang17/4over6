@@ -48,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
     protected void startWorker() {
         textViewTime.setText("0");
         handler = new WorkHandler(this, getMainLooper());
-        wordThread = new Thread(new WorkRunnable(handler, ipFifoPath));
+        wordThread = new Thread(new WorkRunnable(handler, ipFifoPath, tunFifoPath, statFifoPath));
         wordThread.start();
     }
 

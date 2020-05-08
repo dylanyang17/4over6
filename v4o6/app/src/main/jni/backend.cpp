@@ -44,9 +44,9 @@ void writeMessageToFifo(Message message, int fifoHandle) {
 // 从 Fifo 中读取 Message
 Message readMessageFromFifo(int fifoHandle) {
     Message message;
-    read(fifoHandle, &message.len, 4);
+    read(fifoHandle, &message.length, 4);
     read(fifoHandle, &message.type, 1);
-    read(fifoHandle, message.data, message.len - 5);  // TODO：有可能崩溃
+    read(fifoHandle, message.data, message.length - 5);  // TODO：有可能崩溃
     return message;
 }
 
@@ -102,7 +102,35 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         }
     }*/
 
-
+    if (mkfifo(tunFifoPath, 0666) < 0) {
+        char tmp[] = "创建管道失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+    int tunFifoHandle;
+    if ((tunFifoHandle = open(tunFifoPath, O_RDONLY)) < 0) {
+        char tmp[] = "打开 tunFifo 失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+    while (true) {
+        int length;
+        int size = read(tunFifoHandle, &length, 4);
+        if (size < 0) {
+            char tmp[] = "读取 tunFifo 失败\n";
+            strcpy(info, tmp);
+            return -1;
+        }
+        else if (size > 0) {
+            char tmp[100];
+            sprintf(tmp, "%d", length);
+            strcpy(info, tmp);
+            close(tunFifoHandle);
+            return 0;
+        } else {
+            continue;
+        }
+    }
     return 0;
 
     if (mkfifo(ipFifoPath, 0666) < 0) {

@@ -115,7 +115,6 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         return -1;
     }
     writeMessageToFifo(message, ipFifoHandle);
-    close(ipFifoHandle);
 
     // 读取 tunFifo 管道获得 tun 描述符
     if (mkfifo(tunFifoPath, 0666) < 0) {
@@ -130,6 +129,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         return -1;
     }
     message = readMessageFromFifo(tunFifoHandle);
+    close(tunFifoHandle);
     char tmp[100];
     sprintf(tmp, "%d", message.length);
     strcpy(info, message.data);
@@ -139,6 +139,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     printf("进入主循环...\n\n");
     // strcpy(info, message.data);
 
+    close(ipFifoHandle);
     close(tunFifoHandle);
     return 0;
 }

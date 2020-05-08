@@ -1,6 +1,7 @@
 package com.yangyr17.v4o6;
 
 import android.content.Context;
+import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
 
@@ -92,16 +93,30 @@ public class WorkRunnable implements Runnable {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
-                Log.w("WorkThread", "Interrupted Exception while sleeping.");
+                Log.w("WorkRunnable", "Interrupted Exception while sleeping.");
             }
             // 读 ip 管道
-            File ipFifoFile = new File(ipFifoPath);
-            if (!ipFifoFile.exists()) {
-                Log.i("worker", "ip 管道暂不存在");
-            } else {
-                // 读取 ip 管道
-                Msg msg = new Msg();
-                readMsg(ipFifoFile, buffer, msg);
+            if (!hasIP) {
+                File ipFifoFile = new File(ipFifoPath);
+                if (!ipFifoFile.exists()) {
+                    Log.i("WorkRunnable", "ip 管道暂不存在");
+                    continue;
+                } else {
+                    // 读取 ip 管道
+                    Msg msg = new Msg();
+                    boolean suc = readMsg(ipFifoFile, buffer, msg);
+                    if (!suc) {
+                        Log.e("WorkRunnable", "读取 Message 失败");
+                        continue;
+                    }
+                    if (msg.type == Constants.TYPE_IP_RESPONSE) {
+                        hasIP = true;
+                        Message message = Message.obtain();
+                        message.what = msg.type;
+                        message.obj = msg;
+                        handler.sendMessage(message);
+                    }
+                }
             }
 //            Message message = Message.obtain();
 //            handler.sendMessage(message);
@@ -111,4 +126,5 @@ public class WorkRunnable implements Runnable {
     private WorkHandler handler;
     private String ipFifoPath;
     private byte []buffer = new byte[4200];
+    private boolean hasIP = false;
 }

@@ -17,6 +17,9 @@ public class WorkHandler extends Handler {
     public void handleMessage(Message msg) {
         super.handleMessage(msg);
         MainActivity mainActivity = activity.get();
+        if (msg.what == Constants.TYPE_IP_RESPONSE) {
+            // 收到 IP 响应，连接 vpn
+        }
         int time = Integer.parseInt(mainActivity.textViewTime.getText().toString()) + 1;
         mainActivity.textViewTime.setText(String.valueOf(time));
         Log.i("timer", String.valueOf(time));

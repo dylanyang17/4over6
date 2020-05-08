@@ -11,16 +11,16 @@
 #include "message.h"
 #include "utils.cpp"
 
-Message readMessageFromSocket(int fd) {
+Message readMessageFromSocket(int socketFd) {
     Message message;
-    if (recv(fd, &message.length, 4, 0) < 4) {
+    if (recv(socketFd, &message.length, 4, 0) < 4) {
         printf("读取 length 失败\n");
     }
-    if (recv(fd, &message.type, 1, 0) < 1) {
+    if (recv(socketFd, &message.type, 1, 0) < 1) {
         printf("读取 type 失败\n");
     }
     int res = message.length - 5;
-    if (recv(fd, message.data, res, 0) < res) {
+    if (recv(socketFd, message.data, res, 0) < res) {
         printf("读取 data 失败\n");
     }
     return message;
@@ -55,19 +55,19 @@ Message readMessageFromFifo(int fifoHandle) {
 // 成功时返回 0，失败返回 -1
 int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *info) {
     // 创建 socket
-    int fd = socket(AF_INET6, SOCK_STREAM, 0);
-    if (fd < 0) {
+    int socketFd = socket(AF_INET6, SOCK_STREAM, 0);
+    if (socketFd < 0) {
         char tmp[] = "创建 socket 失败";
         printf("%s\n", tmp);
         strcpy(info, tmp);
         return -1;
     }
-    printf("创建 socket, fd: %d\n", fd);
+    printf("创建 socket, socketFd: %d\n", socketFd);
     
     // 连接服务器
     sockaddr_in6 saddr6 = utils::getSockaddr6(const_cast<char*>(ipv6), port);
     int ret;
-    if ((ret=connect(fd, (sockaddr*)(&saddr6), sizeof(saddr6))) < 0) {
+    if ((ret=connect(socketFd, (sockaddr*)(&saddr6), sizeof(saddr6))) < 0) {
         char tmp[] = "连接服务器失败，请确认拥有 ipv6 网络\n";
         strcpy(info, tmp);
         return -1;
@@ -77,13 +77,13 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     Message message;
     message.type = 100;
     message.length = sizeof(message);
-    int num = send(fd, (void*)&message, message.length, 0);
+    int num = send(socketFd, (void*)&message, message.length, 0);
     if (num < message.length) {
         char tmp[] = "向服务器发送 IP 地址请求失败\n";
         strcpy(info, tmp);
         return -1;
     }
-    message = readMessageFromSocket(fd);
+    message = readMessageFromSocket(socketFd);
     if (message.type != 101) {
         char tmp[] = "IP 地址响应格式错误\n";
         strcpy(info, tmp);

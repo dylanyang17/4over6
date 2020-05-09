@@ -6,7 +6,7 @@ public final class Constants {
 
     static boolean isMessageType(int type) {
         // TODO: 若有新类型则将修改
-        return type >= TYPE_IP_REQUEST && type <= TYPE_TUN;
+        return type >= TYPE_IP_REQUEST && type <= TYPE_TIMEOUT;
     }
 
     static final byte WHAT_TIMER = 1;
@@ -18,4 +18,6 @@ public final class Constants {
     static final byte TYPE_TUN = 105;
     static final byte TYPE_STAT = 106;
     static final byte TYPE_DEBUG = 107;
+    static final byte TYPE_TIMEOUT = 108;
+    static final byte TYPE_CLOSE_DEBUG = 109;
 }

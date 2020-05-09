@@ -63,6 +63,7 @@ public class Msg {
         return false;
     }
 
+    // NOTE: 注意此函数在 data 带字节 0 时会出错
     static public boolean writeMsg(File fifo, Msg msg) {
         try {
             FileOutputStream fileOutputStream = new FileOutputStream(fifo);
@@ -72,7 +73,9 @@ public class Msg {
             tmp = new byte[1];
             tmp[0] = msg.type;
             out.write(tmp, 0, 1);
-            out.write(msg.data.getBytes());
+            if (msg.length > 5) {
+                out.write(msg.data.getBytes(), 0, msg.length - 5);
+            }
             // out.write(arr, 0, arr.length);//arr 是存放数据的 byte 类型数组
             out.close();
             return true;

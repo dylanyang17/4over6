@@ -22,12 +22,13 @@ import java.util.logging.LogRecord;
 
 public class WorkRunnable implements Runnable {
 
-    WorkRunnable(WorkHandler handler, String ipFifoPath, String tunFifoPath, String statFifoPath) {
+    WorkRunnable(WorkHandler handler, String ipFifoPath, String tunFifoPath, String statFifoPath, String FBFifoPath) {
         super();
         this.handler = handler;
         this.ipFifoPath = ipFifoPath;
         this.tunFifoPath = tunFifoPath;
         this.statFifoPath = statFifoPath;
+        this.FBFifoPath = FBFifoPath;
     }
 
     @SuppressWarnings("InfiniteLoopStatement")
@@ -42,7 +43,17 @@ public class WorkRunnable implements Runnable {
             }
             Log.d("WorkRunnable", "timer");
             if (!handler.activity.get().isRunning) {
-                // 停止执行时，关闭子线程
+                // 停止执行时，清理各个子线程
+                // 关闭后台线程 (Backend 对应线程)
+                File FBFifoFile = new File(FBFifoPath);
+                Msg msg = new Msg();
+                msg.length = 5;
+                msg.type = Constants.TYPE_TIMEOUT;
+                if (!Msg.writeMsg(FBFifoFile, msg)) {
+                    Log.i("WorkRunnable", "关闭线程时发送消息失败");
+                }
+                Log.i("WorkRunnable", "关闭各个线程");
+                // 关闭当前线程
                 break;
             }
             // 读 ip 管道
@@ -92,7 +103,7 @@ public class WorkRunnable implements Runnable {
     }
 
     private WorkHandler handler;
-    private String ipFifoPath, tunFifoPath, statFifoPath;
+    private String ipFifoPath, tunFifoPath, statFifoPath, FBFifoPath;
     private byte []buffer = new byte[4200];
     private boolean hasIP = false;
 }

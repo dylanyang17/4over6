@@ -32,6 +32,10 @@ public class DebugRunnable implements Runnable{
                 } else {
                     Log.i("DebugRunnable", "length: " + msg.length + ", type: " + msg.type);
                 }
+                if (msg.type == Constants.TYPE_CLOSE_DEBUG) {
+                    Log.i("DebugRunnable", "关闭 DebugRunnable");
+                    break;
+                }
             }
         }
     }

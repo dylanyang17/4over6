@@ -18,6 +18,8 @@ public class BackendHandler extends Handler {
         String s = (String)message.obj;
         MainActivity mainActivity = activity.get();
         Toast.makeText(mainActivity, s, Toast.LENGTH_LONG).show();
+        activity.get().buttonConnect.setText("连接");
+        activity.get().buttonConnect.setEnabled(true);
     }
     private WeakReference<MainActivity> activity;
 }

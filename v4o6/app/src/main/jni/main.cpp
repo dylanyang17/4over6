@@ -22,16 +22,17 @@ void jstringToChar(JNIEnv* env, jstring jstr, char* rtn)
 }
 
 JNIEXPORT jstring JNICALL Java_com_yangyr17_v4o6_JNIUtils_startBackend
-  (JNIEnv *env, jclass thiz, jstring jipv6, jint jport, jstring jipFifoPath, jstring jtunFifoPath, jstring jstatFifoPath, jstring jdebugFifoPath)
+  (JNIEnv *env, jclass thiz, jstring jipv6, jint jport, jstring jipFifoPath, jstring jtunFifoPath, jstring jstatFifoPath, jstring jdebugFifoPath, jstring jFBFifoPath)
 {
-    char ipv6[100], ipFifoPath[100], tunFifoPath[100], statFifoPath[100], debugFifoPath[100];
+    char ipv6[100], ipFifoPath[100], tunFifoPath[100], statFifoPath[100], debugFifoPath[100], FBFifoPath[100];
     int port = (int)jport;
     jstringToChar(env, jipv6, ipv6);
     jstringToChar(env, jipFifoPath, ipFifoPath);
     jstringToChar(env, jtunFifoPath, tunFifoPath);
     jstringToChar(env, jstatFifoPath, statFifoPath);
     jstringToChar(env, jdebugFifoPath, debugFifoPath);
+    jstringToChar(env, jFBFifoPath, FBFifoPath);
     char ret[200];
-    init(ipv6, port, ipFifoPath, tunFifoPath, statFifoPath, debugFifoPath, ret);
+    init(ipv6, port, ipFifoPath, tunFifoPath, statFifoPath, debugFifoPath, FBFifoPath, ret);
     return (env)->NewStringUTF(ret);
 }

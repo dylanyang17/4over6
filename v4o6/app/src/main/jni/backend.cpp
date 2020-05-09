@@ -11,7 +11,7 @@
 #include "message.h"
 #include "utils.cpp"
 
-static bool timeout;   // 是否超时
+static bool timeout;   // 是否超时，同时也用来控制关闭线程
 static int beatTimer;  // 记录从上一次 beat 起到现在花的时间
 static int debugFifoHandle;
 static pthread_mutex_t beatTimerMutex;
@@ -28,7 +28,7 @@ void writeMessageToFifo(int fifoHandle, Message message) {
     int res = message.length - 5, cnt = 0;
     while (res > cnt) {
         int tmp = write(fifoHandle, message.data + cnt, res - cnt);
-        if (tmp < 0) break;
+        if (tmp <= 0) break;
         cnt += tmp;
     }
 }
@@ -36,12 +36,16 @@ void writeMessageToFifo(int fifoHandle, Message message) {
 // 从 Fifo 中读取 Message
 Message readMessageFromFifo(int fifoHandle) {
     Message message;
-    read(fifoHandle, &message.length, 4);
+    if (read(fifoHandle, &message.length, 4) < 4) {
+        // 理应是文件结尾
+        message.length = message.type = 0;
+        return message;
+    }
     read(fifoHandle, &message.type, 1);
     int res = message.length - 5, cnt = 0;
     while (res > cnt) {
         int tmp = read(fifoHandle, message.data + cnt, res - cnt);
-        if (tmp < 0) break;
+        if (tmp <= 0) break;
         cnt += tmp;
     }
     return message;
@@ -55,7 +59,7 @@ void writeMessageToSocket(int socketFd, Message message) {
     int res = message.length - 5, cnt = 0;
     while (res > cnt) {
         int tmp = send(socketFd, message.data + cnt, res - cnt, 0);
-        if (tmp < 0) break;
+        if (tmp <= 0) break;
         cnt += tmp;
     }
     pthread_mutex_unlock(&socketWriteMutex);
@@ -75,7 +79,7 @@ Message readMessageFromSocket(int socketFd, int &cnt) {
     int res = message.length - 5;
     while (cnt < res) {
         int tmp = recv(socketFd, message.data + cnt, res - cnt, 0);
-        if (tmp == -1) break;
+        if (tmp <= 0) break;
         cnt += tmp;
     }
     pthread_mutex_unlock(&socketReadMutex);
@@ -113,6 +117,12 @@ void* readTun(void *arg) {
     while (true) {
         char tmp[4096];
         int bytes = read(tunFd, tmp, 2000);
+        pthread_mutex_lock(&beatTimerMutex);
+        if (timeout) {
+            pthread_mutex_unlock(&beatTimerMutex);
+            break;
+        }
+        pthread_mutex_unlock(&beatTimerMutex);
         if (bytes > 0) {
             // 检查到有发往 tun0 的消息，转发给服务器
             pthread_mutex_lock(&uploadMutex);
@@ -128,6 +138,7 @@ void* readTun(void *arg) {
         // sprintf(tmp, "%d", size);
         // strcpy(info, tmp);
     }
+    writeDebugMessage("切断后台 readTun 线程");
     return NULL;
 }
 
@@ -139,6 +150,10 @@ void* timerWorker(void *arg) {
         sleep(1);
         pthread_mutex_lock(&beatTimerMutex);
         ++beatTimer;
+        if (timeout) {
+            pthread_mutex_unlock(&beatTimerMutex);
+            break;
+        }
         if (beatTimer > 60) {
             // 超时
             timeout = true;
@@ -166,12 +181,41 @@ void* timerWorker(void *arg) {
         pthread_mutex_unlock(&downloadMutex);
         pthread_mutex_unlock(&uploadMutex);
     }
+    writeDebugMessage("切断后台 timerWorker 线程");
+}
+
+// 前台对后台的控制器线程，利用 tunFifo 实现
+void* FBController(void *arg) {
+    char *FBFifoPath = (char*)arg;
+    writeDebugMessage("运行 FBController");
+    // 读取 tunFifo 管道获得 tun 描述符
+    if (mkfifo(FBFifoPath, 0666) < 0) {
+        writeDebugMessage("创建 FBFifo 管道失败");
+        return NULL;
+    }
+    int FBFifoHandle;
+    if ((FBFifoHandle = open(FBFifoPath, O_RDONLY)) < 0) {
+        writeDebugMessage("打开 FBFifo 失败");
+        return NULL;
+    }
+    while (true) {
+        sleep(1);
+        Message message = readMessageFromFifo(FBFifoHandle);
+        if (message.type == 108) {
+            pthread_mutex_lock(&beatTimerMutex);
+            timeout = true;
+            pthread_mutex_unlock(&beatTimerMutex);
+            writeDebugMessage("切断后台 FBController 线程");
+            break;
+        }
+    }
+    return NULL;
 }
 
 // 创建 socket、连接服务器，并请求 IP 地址
 // ret 为返回的字符串信息，若失败则对应为失败信息，若成功则对应为 "IP Route DNS DNS DNS" 格式的信息
 // 成功时返回 0，失败返回 -1
-int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *debugFifoPath, char *info) {
+int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *debugFifoPath, char *FBFifoPath, char *info) {
     // 创建 socket
     timeout = false;
     uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
@@ -283,7 +327,6 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         return -1;
     }
     message = readMessageFromFifo(tunFifoHandle);
-    close(tunFifoHandle);
     int tunFd;
     sscanf(message.data, "%d", &tunFd);
     close(ipFifoHandle);
@@ -297,7 +340,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     pthread_t readTunThread;
     ThreadArg threadArg;
     threadArg.tunFd = tunFd, threadArg.socketFd = socketFd, threadArg.statFifoHandle = statFifoHandle;
-    if (pthread_create(&readTunThread, NULL, &readTun, (void*)&threadArg) != 0) //创建线程
+    if (pthread_create(&readTunThread, NULL, &readTun, (void*)&threadArg) != 0)
     {
         char tmp[] = "创建线程 readTun 失败\n";
         strcpy(info, tmp);
@@ -306,9 +349,18 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
 
     // 创建 timerWorker 定时器线程
     pthread_t timerWorkerThread;
-    if (pthread_create(&timerWorkerThread, NULL, &timerWorker, (void*)&threadArg) != 0) //创建线程
+    if (pthread_create(&timerWorkerThread, NULL, &timerWorker, (void*)&threadArg) != 0)
     {
         char tmp[] = "创建线程 timerWorker 失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+
+    // 创建 FBController 前端到后端的控制线程
+    pthread_t FBControllerThread;
+    if (pthread_create(&FBControllerThread, NULL, &FBController, (void*)FBFifoPath) != 0)
+    {
+        char tmp[] = "创建线程 FBController 失败\n";
         strcpy(info, tmp);
         return -1;
     }
@@ -355,6 +407,15 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         // return 0;
     }
     // 暂时直接写在这里
-
+    writeDebugMessage("3秒后切断后台主线程");
+    // 关闭 DebugRunnable
+    Message message;
+    message.length = 5;
+    message.type = 108;
+    writeDebugMessage(message);
+    sleep(3);
+    close(debugFifoHandle);
+    close(socketFd);
+    strcpy(info, "断开连接成功");
     return 0;
 }

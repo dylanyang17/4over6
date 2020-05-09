@@ -81,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
         tunFifoPath = getFilesDir().getAbsolutePath() + "/tun_fifo";
         statFifoPath = getFilesDir().getAbsolutePath() + "/stat_fifo";
         debugFifoPath = getFilesDir().getAbsolutePath() + "/debug_fifo";
+        FBFifoPath = getFilesDir().getAbsolutePath() + "/FB_fifo";
     }
 
     @Override
@@ -116,13 +117,15 @@ public class MainActivity extends AppCompatActivity {
             uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
             updateStat(0, 0, 0, 0);
             File ipFifoFile = new File(ipFifoPath), tunFifoFile = new File(tunFifoPath),
-                    statFifoFile = new File(statFifoPath), debugFifoFile = new File(debugFifoPath);
-            if (ipFifoFile.exists() || tunFifoFile.exists() || statFifoFile.exists() || debugFifoFile.exists()) {
+                    statFifoFile = new File(statFifoPath), debugFifoFile = new File(debugFifoPath),
+                    FBFifoFile = new File(FBFifoPath);
+            if (ipFifoFile.exists() || tunFifoFile.exists() || statFifoFile.exists() || debugFifoFile.exists() || FBFifoFile.exists()) {
                 Log.i("connect", "清理管道");
                 if ((ipFifoFile.exists() && !ipFifoFile.delete()) ||
                         (tunFifoFile.exists() && !tunFifoFile.delete()) ||
                         (statFifoFile.exists() && !statFifoFile.delete()) ||
-                        (debugFifoFile.exists() && !debugFifoFile.delete())) {
+                        (debugFifoFile.exists() && !debugFifoFile.delete()) ||
+                        (FBFifoFile.exists() && !FBFifoFile.delete())) {
                     Log.e("connect", "清理管道失败");
                 }
             }
@@ -130,14 +133,14 @@ public class MainActivity extends AppCompatActivity {
             Log.i("connect", "启动计时器线程");
             textViewTime.setText("0");
             workHandler = new WorkHandler(this, getMainLooper());
-            workThread = new Thread(new WorkRunnable(workHandler, ipFifoPath, tunFifoPath, statFifoPath));
+            workThread = new Thread(new WorkRunnable(workHandler, ipFifoPath, tunFifoPath, statFifoPath, FBFifoPath));
             workThread.start();
 
             Log.i("connect", "启动 C++ 后台线程");
             backendHandler = new BackendHandler(this, getMainLooper());
             backendThread = new Thread(new BackendRunnable(backendHandler, editTextIPv6.getText().toString(),
                     Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, tunFifoPath,
-                    statFifoPath, debugFifoPath));
+                    statFifoPath, debugFifoPath, FBFifoPath));
             backendThread.start();
 
             Log.i("connect", "启动 debug 线程");
@@ -147,11 +150,12 @@ public class MainActivity extends AppCompatActivity {
         } else {
             // 断开连接
             Log.i("lala", "try to stop");
+            buttonConnect.setEnabled(false);
+            buttonConnect.setText("断开中...");
             isRunning = false;
             myVpnService.stopVpn();
             unbindService(connection);
             stopService(intentVpnService);
-            buttonConnect.setText("连接");
         }
     }
 
@@ -205,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
     public boolean isBound = false;
     public MyVpnService myVpnService;
 
-    public String ipFifoPath, tunFifoPath, statFifoPath, debugFifoPath;
+    public String ipFifoPath, tunFifoPath, statFifoPath, debugFifoPath, FBFifoPath;
 
     public String ipv4, route, dns1, dns2, dns3;  // 通过 101 ip 响应获得
     public int protectedFd;                       // 通过 101 ip 响应获得

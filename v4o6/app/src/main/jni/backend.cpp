@@ -16,7 +16,8 @@ static int beatTimer;  // 记录从上一次 beat 起到现在花的时间
 static int debugFifoHandle;
 static pthread_mutex_t beatTimerMutex;
 static pthread_mutex_t socketReadMutex, socketWriteMutex;
-static pthread_mutex_t debugFifoMutex;
+static pthread_mutex_t debugFifoMutex, uploadMutex, downloadMutex;
+static int uploadBytes, uploadPackages, downloadBytes, downloadPackages;
 
 // 向 Fifo 中写入 Message
 void writeMessageToFifo(int fifoHandle, Message message) {
@@ -88,16 +89,19 @@ void writeDebugMessage(Message message) {
     pthread_mutex_unlock(&debugFifoMutex);
 }
 
-// 主循环线程
-void mainLoop() {
-    while (true) {
-
-    }
+// 发送 108 类型的 debug 消息，用于发送自定义的字符串信息
+void writeDebugMessage(const char *info) {
+    Message message;
+    strcpy(message.data, info);
+    message.type = 108;
+    message.length = 5 + strlen(message.data);
+    writeDebugMessage(message);
 }
 
 struct ThreadArg {
     int tunFd;
     int socketFd;
+    int statFifoHandle;
 };
 
 // 读取 tun 的线程
@@ -108,11 +112,16 @@ void* readTun(void *arg) {
     Message message;
     while (true) {
         char tmp[4096];
-        int size = read(tunFd, tmp, 2000);
-        if (size > 0) {
-            message.length = 5 + size;
+        int bytes = read(tunFd, tmp, 2000);
+        if (bytes > 0) {
+            // 检查到有发往 tun0 的消息，转发给服务器
+            pthread_mutex_lock(&uploadMutex);
+            uploadPackages++;
+            uploadBytes += bytes;
+            pthread_mutex_unlock(&uploadMutex);
+            message.length = 5 + bytes;
             message.type = 102;
-            for (int i = 0; i < size; ++i) message.data[i] = tmp[i];
+            for (int i = 0; i < bytes; ++i) message.data[i] = tmp[i];
             writeMessageToSocket(socketFd, message);
         //    writeDebugMessage(message);
         }
@@ -125,11 +134,12 @@ void* readTun(void *arg) {
 // 定时器线程
 void* timerWorker(void *arg) {
     ThreadArg threadArg = *(ThreadArg*)arg;
-    int socketFd = threadArg.socketFd;
+    int socketFd = threadArg.socketFd, statFifoHandle = threadArg.statFifoHandle;
     while (true) {
         sleep(1);
         pthread_mutex_lock(&beatTimerMutex);
-        if (++beatTimer > 60) {
+        ++beatTimer;
+        if (beatTimer > 60) {
             // 超时
             timeout = true;
             pthread_mutex_unlock(&beatTimerMutex);
@@ -143,6 +153,18 @@ void* timerWorker(void *arg) {
             writeMessageToSocket(socketFd, message);
         }
         pthread_mutex_unlock(&beatTimerMutex);
+
+        // 发送统计信息
+        pthread_mutex_lock(&uploadMutex);
+        pthread_mutex_lock(&downloadMutex);
+        Message message;
+        sprintf(message.data, "%d %d %d %d", uploadBytes, uploadPackages, downloadBytes, downloadPackages);
+        message.type = 106;
+        message.length = strlen(message.data) + 5;
+        writeMessageToFifo(statFifoHandle, message);
+        uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
+        pthread_mutex_unlock(&downloadMutex);
+        pthread_mutex_unlock(&uploadMutex);
     }
 }
 
@@ -152,6 +174,7 @@ void* timerWorker(void *arg) {
 int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *debugFifoPath, char *info) {
     // 创建 socket
     timeout = false;
+    uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
     int cnt;
     int socketFd = socket(AF_INET6, SOCK_STREAM, 0);
     if (socketFd < 0) {
@@ -221,7 +244,20 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     }
     writeMessageToFifo(ipFifoHandle, message);
 
-    // 创建 debugFifo 管道 —— NOTE：注意不要在多个线程中同时对其进行写操作
+    // 创建 statFifo 管道
+    int statFifoHandle;
+    if (mkfifo(statFifoPath, 0666) < 0) {
+        char tmp[] = "创建 statFifo 管道失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+    if((statFifoHandle = open(statFifoPath, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
+        char tmp[] = "打开 statFifo 管道失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+
+    // 创建 debugFifo 管道
     if (mkfifo(debugFifoPath, 0666) < 0) {
         char tmp[] = "创建 debugFifo 管道失败\n";
         strcpy(info, tmp);
@@ -260,7 +296,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     // 创建 readTun 线程用于读取 tun0 接口并发送给服务器
     pthread_t readTunThread;
     ThreadArg threadArg;
-    threadArg.tunFd = tunFd, threadArg.socketFd = socketFd;
+    threadArg.tunFd = tunFd, threadArg.socketFd = socketFd, threadArg.statFifoHandle = statFifoHandle;
     if (pthread_create(&readTunThread, NULL, &readTun, (void*)&threadArg) != 0) //创建线程
     {
         char tmp[] = "创建线程 readTun 失败\n";
@@ -298,7 +334,17 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         }
         writeDebugMessage(message);
         if (message.type == 103) {
-            write(tunFd, (void*)message.data, message.length - 5);
+            // 收到服务端的访问响应
+            pthread_mutex_lock(&downloadMutex);
+            int bytes = message.length - 5;
+            if (bytes < 0 || bytes > 4096) {
+                // 不应当出现
+                writeDebugMessage("socket 读取长度出错");
+            }
+            downloadPackages++;
+            downloadBytes += bytes;
+            pthread_mutex_unlock(&downloadMutex);
+            write(tunFd, (void*)message.data, bytes);
         } else if (message.type == 104) {
             // 收到服务端的心跳包
             pthread_mutex_lock(&beatTimerMutex);

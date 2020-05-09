@@ -63,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textViewTime = (TextView) findViewById(R.id.textViewTime);
-        textViewState = (TextView) findViewById(R.id.textViewState);
         editTextIPv6 = (EditText) findViewById(R.id.editTextIPv6);
         editTextPort = (EditText) findViewById(R.id.editTextPort);
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
@@ -135,7 +134,6 @@ public class MainActivity extends AppCompatActivity {
             unbindService(connection);
             stopService(intentVpnService);
             buttonConnect.setText("连接");
-            textViewState.setText("已断开");
         }
     }
 
@@ -151,7 +149,7 @@ public class MainActivity extends AppCompatActivity {
 
     public String ipv4, route, dns1, dns2, dns3;  // 通过 101 ip 响应获得
     public int protectedFd;                       // 通过 101 ip 响应获得
-    public TextView textViewTime, textViewState;
+    public TextView textViewTime;
     public EditText editTextIPv6, editTextPort;
     public Button buttonConnect;
     public Intent intentVpnService;

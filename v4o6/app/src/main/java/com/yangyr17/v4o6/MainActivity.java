@@ -111,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
             // 进行连接
             buttonConnect.setText("连接中...");
             buttonConnect.setEnabled(false);
+            isRunning = true;
 
             uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
             updateStat(0, 0, 0, 0);
@@ -129,8 +130,8 @@ public class MainActivity extends AppCompatActivity {
             Log.i("connect", "启动计时器线程");
             textViewTime.setText("0");
             workHandler = new WorkHandler(this, getMainLooper());
-            wordThread = new Thread(new WorkRunnable(workHandler, ipFifoPath, tunFifoPath, statFifoPath));
-            wordThread.start();
+            workThread = new Thread(new WorkRunnable(workHandler, ipFifoPath, tunFifoPath, statFifoPath));
+            workThread.start();
 
             Log.i("connect", "启动 C++ 后台线程");
             backendHandler = new BackendHandler(this, getMainLooper());
@@ -146,6 +147,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             // 断开连接
             Log.i("lala", "try to stop");
+            isRunning = false;
             myVpnService.stopVpn();
             unbindService(connection);
             stopService(intentVpnService);
@@ -215,7 +217,9 @@ public class MainActivity extends AppCompatActivity {
     public Intent intentVpnService;
     public WorkHandler workHandler;
     public BackendHandler backendHandler;
-    public Thread wordThread, backendThread, debugThread;
+    public Thread workThread, backendThread, debugThread;
+
+    public boolean isRunning = false;
 
     public int uploadBytes, uploadPackages, downloadBytes, downloadPackages;
 }

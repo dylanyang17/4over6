@@ -49,5 +49,5 @@ public class WorkHandler extends Handler {
         }
     }
 
-    private WeakReference<MainActivity> activity;
+    public WeakReference<MainActivity> activity;
 }

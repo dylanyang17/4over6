@@ -41,10 +41,10 @@ public class WorkRunnable implements Runnable {
                 Log.w("WorkRunnable", "Interrupted Exception while sleeping.");
             }
             Log.d("WorkRunnable", "timer");
-
-//            while (true) {
-//                ;
-//            }
+            if (!handler.activity.get().isRunning) {
+                // 停止执行时，关闭子线程
+                break;
+            }
             // 读 ip 管道
             if (!hasIP) {
                 File ipFifoFile = new File(ipFifoPath);

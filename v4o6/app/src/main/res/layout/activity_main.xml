@@ -43,9 +43,9 @@
 
         <TextView
             android:id="@+id/textViewIpv4"
-            android:layout_width="242dp"
-            android:layout_height="34dp"
-            android:layout_marginStart="40dp"
+            android:layout_width="239dp"
+            android:layout_height="35dp"
+            android:layout_marginStart="44dp"
             android:gravity="center_vertical"
             android:text="NULL"
             android:textSize="14sp"
@@ -99,7 +99,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="40dp"
+            android:layout_marginTop="8dp"
             android:onClick="connect"
             android:text="连接"
             app:layout_constraintStart_toEndOf="@+id/editTextPort"
@@ -107,8 +107,8 @@
 
         <EditText
             android:id="@+id/editTextPort"
-            android:layout_width="127dp"
-            android:layout_height="34dp"
+            android:layout_width="132dp"
+            android:layout_height="38dp"
             android:ems="10"
             android:inputType="textPersonName"
             android:text="5678"
@@ -120,10 +120,11 @@
             android:id="@+id/editTextIPv6"
             android:layout_width="197dp"
             android:layout_height="36dp"
+            android:layout_marginStart="40dp"
             android:ems="10"
             android:text="2402:f000:4:72:808::9a47"
             android:textSize="14sp"
-            app:layout_constraintStart_toStartOf="@+id/textViewIpv4"
+            app:layout_constraintStart_toEndOf="@+id/textView11"
             app:layout_constraintTop_toTopOf="@+id/textView11" />
 
         <TextView
@@ -157,7 +158,7 @@
             android:id="@+id/textView10"
             android:layout_width="54dp"
             android:layout_height="30dp"
-            android:layout_marginTop="52dp"
+            android:layout_marginTop="108dp"
             android:gravity="center_vertical"
             android:text="ipv4:"
             android:textSize="18sp"
@@ -168,7 +169,7 @@
             android:id="@+id/textView11"
             android:layout_width="54dp"
             android:layout_height="32dp"
-            android:layout_marginTop="148dp"
+            android:layout_marginTop="160dp"
             android:gravity="center_vertical"
             android:text="ipv6:"
             android:textSize="18sp"
@@ -179,7 +180,7 @@
             android:id="@+id/textView12"
             android:layout_width="45dp"
             android:layout_height="32dp"
-            android:layout_marginTop="60dp"
+            android:layout_marginTop="24dp"
             android:gravity="center_vertical"
             android:text="端口:"
             android:textSize="14sp"
@@ -210,5 +211,12 @@
             android:text="下载速度:"
             app:layout_constraintStart_toEndOf="@+id/textView"
             app:layout_constraintTop_toTopOf="@+id/textView" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_begin="368dp" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

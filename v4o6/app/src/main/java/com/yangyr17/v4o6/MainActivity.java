@@ -147,17 +147,34 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 返回合适单位下的值，例如 1.5 MB
+    // isSpeed 为 true 时，还应加上 /s
+    public String getProperScale(int bytes, boolean isSpeed) {
+        String []unit = new String[4];
+        double size = bytes;
+        unit[0] = "B";
+        unit[1] = "KB";
+        unit[2] = "MB";
+        unit[3] = "GB";
+        int nowUnit = 0;
+        while (size >= 1000 && nowUnit < 3) {
+            size /= 1000;
+            nowUnit ++;
+        }
+        return String.valueOf(size) + unit[nowUnit] + (isSpeed ? "/s" : "");
+    }
+
     // 更新统计信息
     public void updateStat(int uploadBytesSec, int uploadPackagesSec, int downloadBytesSec, int downloadPackagesSec) {
         uploadBytes += uploadBytesSec;
         downloadBytes += downloadBytesSec;
         uploadPackages += uploadPackagesSec;
         downloadPackages += downloadPackagesSec;
-        textViewUploadSpeed.setText(String.valueOf(uploadBytesSec));
-        textViewUploadBytes.setText(String.valueOf(uploadBytes));
+        textViewUploadSpeed.setText(getProperScale(uploadBytesSec, true));
+        textViewUploadBytes.setText(getProperScale(uploadBytes, false));
         textViewUploadPackages.setText(String.valueOf(uploadPackages));
-        textViewDownloadSpeed.setText(String.valueOf(downloadBytesSec));
-        textViewDownloadBytes.setText(String.valueOf(downloadBytes));
+        textViewDownloadSpeed.setText(getProperScale(downloadBytesSec, true));
+        textViewDownloadBytes.setText(getProperScale(downloadBytes, false));
         textViewDownloadPackages.setText(String.valueOf(downloadPackages));
     }
 

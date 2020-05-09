@@ -39,15 +39,16 @@ public class Msg {
             }
             ret.type = buf[0];
             // data
-            int expectLen = ret.length - 5;
-            if (expectLen > 0) {
-                readLen = in.read(buf, 0, expectLen);
-                if (readLen < expectLen) {
+            int expectLen = ret.length - 5, cnt = 0;
+            while (expectLen > cnt) {
+                readLen = in.read(buf, cnt, expectLen - cnt);
+                if (readLen < 0) {
                     Log.e("readMsg", "读入 data 失败");
                     return false;
                 }
-                ret.data = new String(buf, 0, expectLen);
+                cnt += readLen;
             }
+            ret.data = new String(buf, 0, expectLen);
             in.close();
             //Log.i("readMsg", "Suc to read, len: " + ret.length + ", type: "
             //        + ret.type + ", data: " + ret.data);

@@ -13,8 +13,10 @@
 
 static bool timeout;   // 是否超时
 static int beatTimer;  // 记录从上一次 beat 起到现在花的时间
+static int debugFifoHandle;
 static pthread_mutex_t beatTimerMutex;
 static pthread_mutex_t socketReadMutex, socketWriteMutex;
+static pthread_mutex_t debugFifoMutex;
 
 // 向 Fifo 中写入 Message
 void writeMessageToFifo(int fifoHandle, Message message) {
@@ -44,6 +46,7 @@ Message readMessageFromFifo(int fifoHandle) {
     return message;
 }
 
+// 从 Socket 中读取 Message
 void writeMessageToSocket(int socketFd, Message message) {
     pthread_mutex_lock(&socketWriteMutex);
     send(socketFd, (void*)&message.length, 4, 0);
@@ -57,6 +60,7 @@ void writeMessageToSocket(int socketFd, Message message) {
     pthread_mutex_unlock(&socketWriteMutex);
 }
 
+// 向 Socket 中写入 Message
 Message readMessageFromSocket(int socketFd, int &cnt) {
     pthread_mutex_lock(&socketReadMutex);
     Message message;
@@ -77,6 +81,13 @@ Message readMessageFromSocket(int socketFd, int &cnt) {
     return message;
 }
 
+// 发送 debug 消息，需要加锁
+void writeDebugMessage(Message message) {
+    pthread_mutex_lock(&debugFifoMutex);
+    writeMessageToFifo(debugFifoHandle, message);
+    pthread_mutex_unlock(&debugFifoMutex);
+}
+
 // 主循环线程
 void mainLoop() {
     while (true) {
@@ -87,7 +98,6 @@ void mainLoop() {
 struct ThreadArg {
     int tunFd;
     int socketFd;
-    int debugFifoHandle;
 };
 
 // 读取 tun 的线程
@@ -95,7 +105,6 @@ void* readTun(void *arg) {
     ThreadArg threadArg = *(ThreadArg*)arg;
     int tunFd = threadArg.tunFd;
     int socketFd = threadArg.socketFd;
-    int debugFifoHandle = threadArg.debugFifoHandle;
     Message message;
     while (true) {
         char tmp[4096];
@@ -105,7 +114,7 @@ void* readTun(void *arg) {
             message.type = 102;
             for (int i = 0; i < size; ++i) message.data[i] = tmp[i];
             writeMessageToSocket(socketFd, message);
-        //    writeMessageToFifo(debugFifoHandle, message);
+        //    writeDebugMessage(message);
         }
         // sprintf(tmp, "%d", size);
         // strcpy(info, tmp);
@@ -130,6 +139,7 @@ void* timerWorker(void *arg) {
             Message message;
             message.length = 5;
             message.type = 104;
+            writeDebugMessage(message);
             writeMessageToSocket(socketFd, message);
         }
         pthread_mutex_unlock(&beatTimerMutex);
@@ -217,13 +227,12 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         strcpy(info, tmp);
         return -1;
     }
-    int debugFifoHandle;
     if((debugFifoHandle = open(debugFifoPath, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
         char tmp[] = "打开 debugFifo 管道失败\n";
         strcpy(info, tmp);
         return -1;
     }
-    writeMessageToFifo(debugFifoHandle, message);
+    writeDebugMessage(message);
 
     // 读取 tunFifo 管道获得 tun 描述符
     if (mkfifo(tunFifoPath, 0666) < 0) {
@@ -248,12 +257,22 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     printf("进入主循环...\n\n");
     // strcpy(info, message.data);
 
+    // 创建 readTun 线程用于读取 tun0 接口并发送给服务器
     pthread_t readTunThread;
     ThreadArg threadArg;
-    threadArg.tunFd = tunFd, threadArg.socketFd = socketFd, threadArg.debugFifoHandle = debugFifoHandle;
+    threadArg.tunFd = tunFd, threadArg.socketFd = socketFd;
     if (pthread_create(&readTunThread, NULL, &readTun, (void*)&threadArg) != 0) //创建线程
     {
         char tmp[] = "创建线程 readTun 失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+
+    // 创建 timerWorker 定时器线程
+    pthread_t timerWorkerThread;
+    if (pthread_create(&timerWorkerThread, NULL, &timerWorker, (void*)&threadArg) != 0) //创建线程
+    {
+        char tmp[] = "创建线程 timerWorker 失败\n";
         strcpy(info, tmp);
         return -1;
     }
@@ -268,7 +287,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
             Message message;
             message.type = 107;
             message.length = 5;
-            writeMessageToFifo(debugFifoHandle, message);
+            writeDebugMessage(message);
             pthread_mutex_unlock(&beatTimerMutex);
             break;
         }
@@ -277,7 +296,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
             sprintf(info, "Error: length: %d, in fact: %d", message.length, cnt + 5);
             break;
         }
-        writeMessageToFifo(debugFifoHandle, message);
+        writeDebugMessage(message);
         if (message.type == 103) {
             write(tunFd, (void*)message.data, message.length - 5);
         } else if (message.type == 104) {

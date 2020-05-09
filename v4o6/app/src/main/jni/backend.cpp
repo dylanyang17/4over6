@@ -34,18 +34,20 @@ void writeMessageToFifo(int fifoHandle, Message message) {
 }
 
 // 从 Fifo 中读取 Message
-Message readMessageFromFifo(int fifoHandle) {
+Message readMessageFromFifo(int fifoHandle, bool &suc) {
     Message message;
+    suc = true;
     if (read(fifoHandle, &message.length, 4) < 4) {
         // 理应是文件结尾
         message.length = message.type = 0;
+        suc = false;
         return message;
     }
     read(fifoHandle, &message.type, 1);
     int res = message.length - 5, cnt = 0;
     while (res > cnt) {
         int tmp = read(fifoHandle, message.data + cnt, res - cnt);
-        if (tmp <= 0) break;
+        if (tmp <= 0) { suc = false; break; }
         cnt += tmp;
     }
     return message;
@@ -66,20 +68,23 @@ void writeMessageToSocket(int socketFd, Message message) {
 }
 
 // 向 Socket 中写入 Message
-Message readMessageFromSocket(int socketFd, int &cnt) {
+Message readMessageFromSocket(int socketFd, bool &suc) {
     pthread_mutex_lock(&socketReadMutex);
     Message message;
-    cnt = 0;
+    int cnt = 0;
+    suc = true;
     if (recv(socketFd, &message.length, 4, 0) < 4) {
         printf("读取 length 失败\n");
+        suc = false;
     }
     if (recv(socketFd, &message.type, 1, 0) < 1) {
         printf("读取 type 失败\n");
+        suc = false;
     }
     int res = message.length - 5;
     while (cnt < res) {
         int tmp = recv(socketFd, message.data + cnt, res - cnt, 0);
-        if (tmp <= 0) break;
+        if (tmp <= 0) { suc = false; break; }
         cnt += tmp;
     }
     pthread_mutex_unlock(&socketReadMutex);
@@ -186,6 +191,7 @@ void* timerWorker(void *arg) {
 
 // 前台对后台的控制器线程，利用 tunFifo 实现
 void* FBController(void *arg) {
+    bool suc;
     char *FBFifoPath = (char*)arg;
     writeDebugMessage("运行 FBController");
     // 读取 tunFifo 管道获得 tun 描述符
@@ -200,8 +206,8 @@ void* FBController(void *arg) {
     }
     while (true) {
         sleep(1);
-        Message message = readMessageFromFifo(FBFifoHandle);
-        if (message.type == 108) {
+        Message message = readMessageFromFifo(FBFifoHandle, suc);
+        if (suc && message.type == 108) {
             pthread_mutex_lock(&beatTimerMutex);
             timeout = true;
             pthread_mutex_unlock(&beatTimerMutex);
@@ -217,6 +223,7 @@ void* FBController(void *arg) {
 // 成功时返回 0，失败返回 -1
 int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *debugFifoPath, char *FBFifoPath, char *info) {
     // 创建 socket
+    bool suc;
     timeout = false;
     uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
     int cnt;
@@ -249,7 +256,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         strcpy(info, tmp);
         return -1;
     }*/
-    message = readMessageFromSocket(socketFd, cnt);
+    message = readMessageFromSocket(socketFd, suc);
     if (message.type != 101) {
         char tmp[] = "IP 地址响应格式错误\n";
         strcpy(info, tmp);
@@ -326,7 +333,12 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         strcpy(info, tmp);
         return -1;
     }
-    message = readMessageFromFifo(tunFifoHandle);
+    message = readMessageFromFifo(tunFifoHandle, suc);
+    if (!suc) {
+        char tmp[] = "读取 tun 失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
     int tunFd;
     sscanf(message.data, "%d", &tunFd);
     close(ipFifoHandle);
@@ -366,54 +378,54 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     }
 
     while (true) {
-        message = readMessageFromSocket(socketFd, cnt);
+        message = readMessageFromSocket(socketFd, suc);
         pthread_mutex_lock(&beatTimerMutex);
         if (timeout == true) {
             // 超时
             char tmp[] = "与服务器的连接超时";
+            pthread_mutex_unlock(&beatTimerMutex);
             strcpy(info, tmp);
             Message message;
             message.type = 107;
             message.length = 5;
+            message.data[0] = '\0';
             writeDebugMessage(message);
-            pthread_mutex_unlock(&beatTimerMutex);
             break;
         }
         pthread_mutex_unlock(&beatTimerMutex);
-        if (cnt < message.length-5) {
-            sprintf(info, "Error: length: %d, in fact: %d", message.length, cnt + 5);
-            break;
-        }
-        writeDebugMessage(message);
-        if (message.type == 103) {
-            // 收到服务端的访问响应
-            pthread_mutex_lock(&downloadMutex);
-            int bytes = message.length - 5;
-            if (bytes < 0 || bytes > 4096) {
-                // 不应当出现
-                writeDebugMessage("socket 读取长度出错");
+        if (suc) {
+            writeDebugMessage(message);
+            if (message.type == 103) {
+                // 收到服务端的访问响应
+                pthread_mutex_lock(&downloadMutex);
+                int bytes = message.length - 5;
+                if (bytes < 0 || bytes > 4096) {
+                    // 不应当出现
+                    writeDebugMessage("socket 读取长度出错");
+                }
+                downloadPackages++;
+                downloadBytes += bytes;
+                pthread_mutex_unlock(&downloadMutex);
+                write(tunFd, (void*)message.data, bytes);
+            } else if (message.type == 104) {
+                // 收到服务端的心跳包
+                pthread_mutex_lock(&beatTimerMutex);
+                beatTimer = 0;
+                pthread_mutex_unlock(&beatTimerMutex);
             }
-            downloadPackages++;
-            downloadBytes += bytes;
-            pthread_mutex_unlock(&downloadMutex);
-            write(tunFd, (void*)message.data, bytes);
-        } else if (message.type == 104) {
-            // 收到服务端的心跳包
-            pthread_mutex_lock(&beatTimerMutex);
-            beatTimer = 0;
-            pthread_mutex_unlock(&beatTimerMutex);
+        } else {
+            writeDebugMessage("读取 socket 失败");
         }
         // sprintf(info, "收到 socket 消息, length:%d, type：%d, data: %s", message.length, (int)message.type, message.data);
         // return 0;
     }
     // 暂时直接写在这里
-    writeDebugMessage("3秒后切断后台主线程");
+    writeDebugMessage("1秒后切断后台主线程");
     // 关闭 DebugRunnable
-    Message message;
     message.length = 5;
     message.type = 108;
     writeDebugMessage(message);
-    sleep(3);
+    sleep(1);
     close(debugFifoHandle);
     close(socketFd);
     strcpy(info, "断开连接成功");

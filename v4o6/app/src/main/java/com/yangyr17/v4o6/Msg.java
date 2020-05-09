@@ -15,10 +15,8 @@ public class Msg {
     byte type;
     String data;
 
-    static public boolean readMsg(File fifo, byte[] buf, Msg ret) {
+    static public boolean readMsg(BufferedInputStream in, byte[] buf, Msg ret) {
         try {
-            FileInputStream fileInputStream = new FileInputStream(fifo);
-            BufferedInputStream in = new BufferedInputStream(fileInputStream);
             // length
             int readLen = in.read(buf, 0, 4);
             if (readLen < 4) {
@@ -49,7 +47,7 @@ public class Msg {
                 cnt += readLen;
             }
             ret.data = new String(buf, 0, expectLen);
-            in.close();
+            //in.close();
             //Log.i("readMsg", "Suc to read, len: " + ret.length + ", type: "
             //        + ret.type + ", data: " + ret.data);
             return true;

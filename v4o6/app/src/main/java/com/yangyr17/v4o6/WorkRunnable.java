@@ -34,71 +34,83 @@ public class WorkRunnable implements Runnable {
     @SuppressWarnings("InfiniteLoopStatement")
     @Override
     public void run() {
-        while (true) {
-            // 暂停 1s
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                Log.w("WorkRunnable", "Interrupted Exception while sleeping.");
-            }
-            Log.d("WorkRunnable", "timer");
-            if (!handler.activity.get().isRunning) {
-                // 停止执行时，清理各个子线程
-                // 关闭后台线程 (Backend 对应线程)
-                File FBFifoFile = new File(FBFifoPath);
-                Msg msg = new Msg();
-                msg.length = 5;
-                msg.type = Constants.TYPE_TIMEOUT;
-                if (!Msg.writeMsg(FBFifoFile, msg)) {
-                    Log.i("WorkRunnable", "关闭线程时发送消息失败");
+        try {
+            File ipFifoFile = new File(ipFifoPath);
+            File statFifoFile = new File(statFifoPath);
+            while(!ipFifoFile.exists()) ;
+            while(!statFifoFile.exists());
+            FileInputStream fileInputStream = new FileInputStream(new File(ipFifoPath));
+            BufferedInputStream ipFifoIn = new BufferedInputStream(fileInputStream);
+            fileInputStream = new FileInputStream(new File(statFifoPath));
+            BufferedInputStream statFifoIn = new BufferedInputStream(fileInputStream);
+            while (true) {
+                // 暂停 1s
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Log.w("WorkRunnable", "Interrupted Exception while sleeping.");
                 }
-                Log.i("WorkRunnable", "关闭各个线程");
-                // 关闭当前线程
-                break;
-            }
-            // 读 ip 管道
-            if (!hasIP) {
-                File ipFifoFile = new File(ipFifoPath);
-                if (!ipFifoFile.exists()) {
-                    Log.i("WorkRunnable", "ip 管道暂不存在");
-                    continue;
-                } else {
-                    // 读取 ip 管道
+                Log.d("WorkRunnable", "timer");
+                if (!handler.activity.get().isRunning) {
+                    // 停止执行时，清理各个子线程
+                    // 关闭后台线程 (Backend 对应线程)
+                    File FBFifoFile = new File(FBFifoPath);
                     Msg msg = new Msg();
-                    boolean suc = Msg.readMsg(ipFifoFile, buffer, msg);
+                    msg.length = 5;
+                    msg.type = Constants.TYPE_TIMEOUT;
+                    if (!Msg.writeMsg(FBFifoFile, msg)) {
+                        Log.i("WorkRunnable", "关闭线程时发送消息失败");
+                    }
+                    Log.i("WorkRunnable", "关闭各个线程");
+                    // 关闭当前线程
+                    break;
+                }
+                // 读 ip 管道
+                if (!hasIP) {
+                    if (!ipFifoFile.exists()) {
+                        Log.i("WorkRunnable", "ip 管道暂不存在");
+                        continue;
+                    } else {
+                        // 读取 ip 管道
+                        Msg msg = new Msg();
+                        boolean suc = Msg.readMsg(ipFifoIn, buffer, msg);
+                        if (!suc) {
+                            Log.e("WorkRunnable", "读取 ip message 失败");
+                            continue;
+                        }
+                        if (msg.type == Constants.TYPE_IP_RESPONSE) {
+                            hasIP = true;
+                            Message message = Message.obtain();
+                            message.what = msg.type;
+                            message.obj = msg;
+                            handler.sendMessage(message);
+                        }
+                    }
+                } else {
+                    // 已经开启了 vpn
+                    Message message = Message.obtain();
+                    message.what = 1;
+                    handler.sendMessage(message);
+
+                    // 读取统计信息
+                    Msg msg = new Msg();
+                    boolean suc = Msg.readMsg(statFifoIn, buffer, msg);
                     if (!suc) {
-                        Log.e("WorkRunnable", "读取 ip message 失败");
+                        Log.e("WorkRunnable", "读取 stat message 失败");
                         continue;
                     }
-                    if (msg.type == Constants.TYPE_IP_RESPONSE) {
-                        hasIP = true;
-                        Message message = Message.obtain();
+                    if (msg.type == Constants.TYPE_STAT) {
+                        message = Message.obtain();
                         message.what = msg.type;
                         message.obj = msg;
                         handler.sendMessage(message);
                     }
                 }
-            } else {
-                // 已经开启了 vpn
-                Message message = Message.obtain();
-                message.what = 1;
-                handler.sendMessage(message);
-
-                // 读取统计信息
-                File statFifoFile = new File(statFifoPath);
-                Msg msg = new Msg();
-                boolean suc = Msg.readMsg(statFifoFile, buffer, msg);
-                if (!suc) {
-                    Log.e("WorkRunnable", "读取 stat message 失败");
-                    continue;
-                }
-                if (msg.type == Constants.TYPE_STAT) {
-                    message = Message.obtain();
-                    message.what = msg.type;
-                    message.obj = msg;
-                    handler.sendMessage(message);
-                }
             }
+            ipFifoIn.close();
+            statFifoIn.close();
+        } catch (Exception e) {
+            Log.e("WorkRunnable", e.toString());
         }
     }
 

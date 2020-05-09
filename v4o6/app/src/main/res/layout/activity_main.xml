@@ -48,7 +48,7 @@
             android:layout_marginStart="40dp"
             android:gravity="center_vertical"
             android:text="NULL"
-            android:textSize="12sp"
+            android:textSize="14sp"
             app:layout_constraintStart_toEndOf="@+id/textView10"
             app:layout_constraintTop_toTopOf="@+id/textView10" />
 
@@ -112,7 +112,7 @@
             android:ems="10"
             android:inputType="textPersonName"
             android:text="5678"
-            android:textSize="12sp"
+            android:textSize="14sp"
             app:layout_constraintStart_toStartOf="@+id/editTextIPv6"
             app:layout_constraintTop_toTopOf="@+id/textView12" />
 

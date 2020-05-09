@@ -13,12 +13,15 @@ import android.net.VpnService;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.File;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 
 public class MainActivity extends AppCompatActivity {
     private ServiceConnection connection = new ServiceConnection() {
@@ -98,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
             bindService(intentVpnService, connection, Context.BIND_AUTO_CREATE);
             textViewIpv4.setText(ipv4);
             buttonConnect.setText("断开");
+            buttonConnect.setEnabled(true);
         }
     }
 
@@ -105,6 +109,8 @@ public class MainActivity extends AppCompatActivity {
     public void connect(View view) {
         if (buttonConnect.getText().equals("连接")) {
             // 进行连接
+            buttonConnect.setText("连接中...");
+            buttonConnect.setEnabled(false);
 
             uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
             updateStat(0, 0, 0, 0);
@@ -161,7 +167,9 @@ public class MainActivity extends AppCompatActivity {
             size /= 1000;
             nowUnit ++;
         }
-        return String.valueOf(size) + unit[nowUnit] + (isSpeed ? "/s" : "");
+        NumberFormat formatter = new DecimalFormat("0.00");
+        String formattedSize = formatter.format(size);
+        return formattedSize + unit[nowUnit] + (isSpeed ? "/s" : "");
     }
 
     // 更新统计信息
@@ -176,6 +184,15 @@ public class MainActivity extends AppCompatActivity {
         textViewDownloadSpeed.setText(getProperScale(downloadBytesSec, true));
         textViewDownloadBytes.setText(getProperScale(downloadBytes, false));
         textViewDownloadPackages.setText(String.valueOf(downloadPackages));
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_DOWN) {
+            moveTaskToBack(true);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     private static final int REQUEST_EXTERNAL_STORAGE = 1;

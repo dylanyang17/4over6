@@ -109,12 +109,14 @@ public class MainActivity extends AppCompatActivity {
     public void connect(View view) {
         if (buttonConnect.getText().equals("连接")) {
             // 进行连接
-            File ipFifoFile = new File(ipFifoPath), tunFifoFile = new File(tunFifoPath), statFifoFile = new File(statFifoPath);
-            if (ipFifoFile.exists() || tunFifoFile.exists() || statFifoFile.exists()) {
+            File ipFifoFile = new File(ipFifoPath), tunFifoFile = new File(tunFifoPath),
+                    statFifoFile = new File(statFifoPath), debugFifoFile = new File(debugFifoPath);
+            if (ipFifoFile.exists() || tunFifoFile.exists() || statFifoFile.exists() || debugFifoFile.exists()) {
                 Log.i("connect", "清理管道");
                 if ((ipFifoFile.exists() && !ipFifoFile.delete()) ||
                         (tunFifoFile.exists() && !tunFifoFile.delete()) ||
-                        (statFifoFile.exists() && !statFifoFile.delete())) {
+                        (statFifoFile.exists() && !statFifoFile.delete()) ||
+                        (debugFifoFile.exists() && !debugFifoFile.delete())) {
                     Log.e("connect", "清理管道失败");
                 }
             }

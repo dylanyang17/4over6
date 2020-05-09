@@ -32,38 +32,7 @@ Message readMessageFromSocket(int socketFd) {
     return message;
 }
 
-// 主循环线程
-void mainLoop() {
-    while (true) {
-
-    }
-}
-
-struct ThreadArg {
-    int tunFd;
-    int socketFd;
-};
-
-void* readTun(void *arg) {
-    ThreadArg threadArg = *(ThreadArg*)arg;
-    int tunFd = threadArg.tunFd;
-    int socketFd = threadArg.socketFd;
-    Message message;
-    while (true) {
-        char tmp[4096];
-        int size = read(tunFd, tmp, 2000);
-        if (size > 0) {
-            message.length = 5 + size;
-            message.type = 102;
-            for (int i = 0; i < size; ++i) message.data[i] = tmp[i];
-            writeMessageToSocket(socketFd, message);
-        }
-        // sprintf(tmp, "%d", size);
-        // strcpy(info, tmp);
-    }
-    return NULL;
-}
-
+// 向 Fifo 中写入 Message
 void writeMessageToFifo(int fifoHandle, Message message) {
     // 按照大端序(网络字节序)传输
     int len = htonl(message.length);
@@ -77,8 +46,43 @@ Message readMessageFromFifo(int fifoHandle) {
     Message message;
     read(fifoHandle, &message.length, 4);
     read(fifoHandle, &message.type, 1);
-    read(fifoHandle, message.data, message.length - 5);  // TODO：有可能崩溃
+    read(fifoHandle, message.data, message.length - 5);
     return message;
+}
+
+// 主循环线程
+void mainLoop() {
+    while (true) {
+
+    }
+}
+
+struct ThreadArg {
+    int tunFd;
+    int socketFd;
+    int debugFifoHandle;
+};
+
+void* readTun(void *arg) {
+    ThreadArg threadArg = *(ThreadArg*)arg;
+    int tunFd = threadArg.tunFd;
+    int socketFd = threadArg.socketFd;
+    int debugFifoHandle = threadArg.debugFifoHandle;
+    Message message;
+    while (true) {
+        char tmp[4096];
+        int size = read(tunFd, tmp, 2000);
+        if (size > 0) {
+            message.length = 5 + size;
+            message.type = 102;
+            for (int i = 0; i < size; ++i) message.data[i] = tmp[i];
+            writeMessageToSocket(socketFd, message);
+            writeMessageToFifo(debugFifoHandle, message);
+        }
+        // sprintf(tmp, "%d", size);
+        // strcpy(info, tmp);
+    }
+    return NULL;
 }
 
 // 创建 socket、连接服务器，并请求 IP 地址
@@ -193,7 +197,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
 
     pthread_t readTunThread;
     ThreadArg threadArg;
-    threadArg.tunFd = tunFd, threadArg.socketFd = socketFd;
+    threadArg.tunFd = tunFd, threadArg.socketFd = socketFd, threadArg.debugFifoHandle = debugFifoHandle;
     if (pthread_create(&readTunThread, NULL, &readTun, (void*)&threadArg) != 0) //创建线程
     {
         char tmp[] = "创建线程 readTun 失败\n";

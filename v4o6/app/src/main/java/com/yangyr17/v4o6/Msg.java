@@ -45,8 +45,8 @@ public class Msg {
                 ret.data = new String(buf, 0, expectLen);
             }
             in.close();
-            Log.i("readMsg", "Suc to read, len: " + ret.length + ", type: "
-                    + ret.type + ", data: " + ret.data);
+            //Log.i("readMsg", "Suc to read, len: " + ret.length + ", type: "
+            //        + ret.type + ", data: " + ret.data);
             return true;
         } catch (FileNotFoundException e) {
             Log.e("readMsg", "FileNotFoundException");

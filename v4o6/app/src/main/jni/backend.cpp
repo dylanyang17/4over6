@@ -11,6 +11,11 @@
 #include "message.h"
 #include "utils.cpp"
 
+static bool timeout;   // 是否超时
+static int beatTimer;  // 记录从上一次 beat 起到现在花的时间
+static pthread_mutex_t beatTimerMutex;
+static pthread_mutex_t socketReadMutex, socketWriteMutex;
+
 // 向 Fifo 中写入 Message
 void writeMessageToFifo(int fifoHandle, Message message) {
     // 按照大端序(网络字节序)传输
@@ -40,17 +45,20 @@ Message readMessageFromFifo(int fifoHandle) {
 }
 
 void writeMessageToSocket(int socketFd, Message message) {
+    pthread_mutex_lock(&socketWriteMutex);
     send(socketFd, (void*)&message.length, 4, 0);
     send(socketFd, (void*)&message.type, 1, 0);
     int res = message.length - 5, cnt = 0;
     while (res > cnt) {
         int tmp = send(socketFd, message.data + cnt, res - cnt, 0);
-        if (tmp < 0) return;
+        if (tmp < 0) break;
         cnt += tmp;
     }
+    pthread_mutex_unlock(&socketWriteMutex);
 }
 
 Message readMessageFromSocket(int socketFd, int &cnt) {
+    pthread_mutex_lock(&socketReadMutex);
     Message message;
     cnt = 0;
     if (recv(socketFd, &message.length, 4, 0) < 4) {
@@ -65,6 +73,7 @@ Message readMessageFromSocket(int socketFd, int &cnt) {
         if (tmp == -1) break;
         cnt += tmp;
     }
+    pthread_mutex_unlock(&socketReadMutex);
     return message;
 }
 
@@ -81,6 +90,7 @@ struct ThreadArg {
     int debugFifoHandle;
 };
 
+// 读取 tun 的线程
 void* readTun(void *arg) {
     ThreadArg threadArg = *(ThreadArg*)arg;
     int tunFd = threadArg.tunFd;
@@ -103,11 +113,35 @@ void* readTun(void *arg) {
     return NULL;
 }
 
+// 定时器线程
+void* timerWorker(void *arg) {
+    ThreadArg threadArg = *(ThreadArg*)arg;
+    int socketFd = threadArg.socketFd;
+    while (true) {
+        sleep(1);
+        pthread_mutex_lock(&beatTimerMutex);
+        if (++beatTimer > 60) {
+            // 超时
+            timeout = true;
+            pthread_mutex_unlock(&beatTimerMutex);
+            break;
+        } else if (beatTimer % 20 == 0) {
+            // 向服务器发送心跳包
+            Message message;
+            message.length = 5;
+            message.type = 104;
+            writeMessageToSocket(socketFd, message);
+        }
+        pthread_mutex_unlock(&beatTimerMutex);
+    }
+}
+
 // 创建 socket、连接服务器，并请求 IP 地址
 // ret 为返回的字符串信息，若失败则对应为失败信息，若成功则对应为 "IP Route DNS DNS DNS" 格式的信息
 // 成功时返回 0，失败返回 -1
 int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *debugFifoPath, char *info) {
     // 创建 socket
+    timeout = false;
     int cnt;
     int socketFd = socket(AF_INET6, SOCK_STREAM, 0);
     if (socketFd < 0) {
@@ -226,6 +260,19 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
 
     while (true) {
         message = readMessageFromSocket(socketFd, cnt);
+        pthread_mutex_lock(&beatTimerMutex);
+        if (timeout == true) {
+            // 超时
+            char tmp[] = "与服务器的连接超时";
+            strcpy(info, tmp);
+            Message message;
+            message.type = 107;
+            message.length = 5;
+            writeMessageToFifo(debugFifoHandle, message);
+            pthread_mutex_unlock(&beatTimerMutex);
+            break;
+        }
+        pthread_mutex_unlock(&beatTimerMutex);
         if (cnt < message.length-5) {
             sprintf(info, "Error: length: %d, in fact: %d", message.length, cnt + 5);
             break;
@@ -233,6 +280,11 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         writeMessageToFifo(debugFifoHandle, message);
         if (message.type == 103) {
             write(tunFd, (void*)message.data, message.length - 5);
+        } else if (message.type == 104) {
+            // 收到服务端的心跳包
+            pthread_mutex_lock(&beatTimerMutex);
+            beatTimer = 0;
+            pthread_mutex_unlock(&beatTimerMutex);
         }
         // sprintf(info, "收到 socket 消息, length:%d, type：%d, data: %s", message.length, (int)message.type, message.data);
         // return 0;

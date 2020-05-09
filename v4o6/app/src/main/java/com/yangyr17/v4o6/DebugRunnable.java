@@ -20,7 +20,7 @@ public class DebugRunnable implements Runnable{
                 // Log.i("DebugRunnable", "debug 管道暂不存在");
                 continue;
             } else {
-                // 读取 ip 管道
+                // 读取 debug 管道
                 Msg msg = new Msg();
                 boolean suc = Msg.readMsg(debugFifoFile, buffer, msg);
                 if (!suc) {

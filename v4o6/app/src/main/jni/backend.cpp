@@ -82,9 +82,9 @@ Message readMessageFromFifo(int fifoHandle) {
 }
 
 // 创建 socket、连接服务器，并请求 IP 地址
-// ret 为返回的字符串信息，若失败则对应位失败信息，若成功则对应为 "IP Route DNS DNS DNS" 格式的信息
+// ret 为返回的字符串信息，若失败则对应为失败信息，若成功则对应为 "IP Route DNS DNS DNS" 格式的信息
 // 成功时返回 0，失败返回 -1
-int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *info) {
+int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *debugFifoPath, char *info) {
     // 创建 socket
     int socketFd = socket(AF_INET6, SOCK_STREAM, 0);
     if (socketFd < 0) {
@@ -148,11 +148,25 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     }
     int ipFifoHandle;
     if((ipFifoHandle = open(ipFifoPath, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
-        char tmp[] = "打开管道文件失败\n";
+        char tmp[] = "打开 ipFifo 管道失败\n";
         strcpy(info, tmp);
         return -1;
     }
     writeMessageToFifo(ipFifoHandle, message);
+
+    // 创建 debugFifo 管道 —— NOTE：注意不要在多个线程中同时对其进行写操作
+    if (mkfifo(debugFifoPath, 0666) < 0) {
+        char tmp[] = "创建 debugFifo 管道失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+    int debugFifoHandle;
+    if((debugFifoHandle = open(debugFifoPath, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
+        char tmp[] = "打开 debugFifo 管道失败\n";
+        strcpy(info, tmp);
+        return -1;
+    }
+    writeMessageToFifo(debugFifoHandle, message);
 
     // 读取 tunFifo 管道获得 tun 描述符
     if (mkfifo(tunFifoPath, 0666) < 0) {

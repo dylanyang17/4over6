@@ -22,15 +22,16 @@ void jstringToChar(JNIEnv* env, jstring jstr, char* rtn)
 }
 
 JNIEXPORT jstring JNICALL Java_com_yangyr17_v4o6_JNIUtils_startBackend
-  (JNIEnv *env, jclass thiz, jstring jipv6, jint jport, jstring jipFifoPath, jstring jtunFifoPath, jstring jstatFifoPath)
+  (JNIEnv *env, jclass thiz, jstring jipv6, jint jport, jstring jipFifoPath, jstring jtunFifoPath, jstring jstatFifoPath, jstring jdebugFifoPath)
 {
-    char ipv6[100], ipFifoPath[100], tunFifoPath[100], statFifoPath[100];
+    char ipv6[100], ipFifoPath[100], tunFifoPath[100], statFifoPath[100], debugFifoPath[100];
     int port = (int)jport;
     jstringToChar(env, jipv6, ipv6);
     jstringToChar(env, jipFifoPath, ipFifoPath);
     jstringToChar(env, jtunFifoPath, tunFifoPath);
     jstringToChar(env, jstatFifoPath, statFifoPath);
+    jstringToChar(env, jdebugFifoPath, debugFifoPath);
     char ret[200];
-    init(ipv6, port, ipFifoPath, tunFifoPath, statFifoPath, ret);
+    init(ipv6, port, ipFifoPath, tunFifoPath, statFifoPath, debugFifoPath, ret);
     return (env)->NewStringUTF(ret);
 }

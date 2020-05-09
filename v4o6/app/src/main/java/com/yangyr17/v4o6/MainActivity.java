@@ -81,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
         ipFifoPath = getFilesDir().getAbsolutePath() + "/ip_fifo";
         tunFifoPath = getFilesDir().getAbsolutePath() + "/tun_fifo";
         statFifoPath = getFilesDir().getAbsolutePath() + "/stat_fifo";
+        debugFifoPath = getFilesDir().getAbsolutePath() + "/debug_fifo";
     }
 
     @Override
@@ -117,12 +118,16 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("connect", "清理管道失败");
                 }
             }
-            Log.i("worker", "启动计时器线程");
+            Log.i("connect", "启动计时器线程");
             startWorker();
-            Log.i("backend", "启动 C++ 后台线程");
+            Log.i("connect", "启动 C++ 后台线程");
             backendThread = new Thread(new BackendRunnable(editTextIPv6.getText().toString(),
-                    Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, tunFifoPath, statFifoPath));
+                    Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, tunFifoPath,
+                    statFifoPath, debugFifoPath));
             backendThread.start();
+            Log.i("connect", "启动 debug 线程");
+            debugThread = new Thread(new DebugRunnable(debugFifoPath));
+            debugThread.start();
         } else {
             // 断开连接
             Log.i("lala", "try to stop");
@@ -142,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
     public boolean isBound = false;
     public MyVpnService myVpnService;
 
-    public String ipFifoPath, tunFifoPath, statFifoPath;
+    public String ipFifoPath, tunFifoPath, statFifoPath, debugFifoPath;
 
     public String ipv4, route, dns1, dns2, dns3;  // 通过 101 ip 响应获得
     public int protectedFd;                       // 通过 101 ip 响应获得
@@ -151,6 +156,6 @@ public class MainActivity extends AppCompatActivity {
     public Button buttonConnect;
     public Intent intentVpnService;
     public WorkHandler handler;
-    public Thread wordThread, backendThread;
+    public Thread wordThread, backendThread, debugThread;
 }
 

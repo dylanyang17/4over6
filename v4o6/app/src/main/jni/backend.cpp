@@ -89,11 +89,11 @@ void writeDebugMessage(Message message) {
     pthread_mutex_unlock(&debugFifoMutex);
 }
 
-// 发送 108 类型的 debug 消息，用于发送自定义的字符串信息
+// 发送 107 类型的 debug 消息，用于发送自定义的字符串信息
 void writeDebugMessage(const char *info) {
     Message message;
     strcpy(message.data, info);
-    message.type = 108;
+    message.type = 107;
     message.length = 5 + strlen(message.data);
     writeDebugMessage(message);
 }

@@ -66,6 +66,13 @@ public class MainActivity extends AppCompatActivity {
         editTextIPv6 = (EditText) findViewById(R.id.editTextIPv6);
         editTextPort = (EditText) findViewById(R.id.editTextPort);
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
+        textViewUploadSpeed = (TextView)  findViewById(R.id.textViewUploadSpeed);
+        textViewUploadBytes = (TextView)  findViewById(R.id.textViewUploadBytes);
+        textViewUploadPackages = (TextView)  findViewById(R.id.textViewUploadPackages);
+        textViewDownloadSpeed = (TextView)  findViewById(R.id.textViewDownloadSpeed);
+        textViewDownloadBytes = (TextView)  findViewById(R.id.textViewDownloadBytes);
+        textViewDownloadPackages = (TextView)  findViewById(R.id.textViewDownloadPackages);
+        textViewIpv4 = (TextView) findViewById(R.id.textViewIpv4);
         checkPermissions(this);
         ipFifoPath = getFilesDir().getAbsolutePath() + "/ip_fifo";
         tunFifoPath = getFilesDir().getAbsolutePath() + "/tun_fifo";
@@ -89,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
             intentVpnService.putExtra("tunFifoPath", tunFifoPath);
             startService(intentVpnService);
             bindService(intentVpnService, connection, Context.BIND_AUTO_CREATE);
-
+            textViewIpv4.setText(ipv4);
             buttonConnect.setText("断开");
         }
     }
@@ -98,6 +105,9 @@ public class MainActivity extends AppCompatActivity {
     public void connect(View view) {
         if (buttonConnect.getText().equals("连接")) {
             // 进行连接
+
+            uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
+            updateStat(0, 0, 0, 0);
             File ipFifoFile = new File(ipFifoPath), tunFifoFile = new File(tunFifoPath),
                     statFifoFile = new File(statFifoPath), debugFifoFile = new File(debugFifoPath);
             if (ipFifoFile.exists() || tunFifoFile.exists() || statFifoFile.exists() || debugFifoFile.exists()) {
@@ -137,6 +147,20 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 更新统计信息
+    public void updateStat(int uploadBytesSec, int uploadPackagesSec, int downloadBytesSec, int downloadPackagesSec) {
+        uploadBytes += uploadBytesSec;
+        downloadBytes += downloadBytesSec;
+        uploadPackages += uploadPackagesSec;
+        downloadPackages += downloadPackagesSec;
+        textViewUploadSpeed.setText(String.valueOf(uploadBytesSec));
+        textViewUploadBytes.setText(String.valueOf(uploadBytes));
+        textViewUploadPackages.setText(String.valueOf(uploadPackages));
+        textViewDownloadSpeed.setText(String.valueOf(downloadBytesSec));
+        textViewDownloadBytes.setText(String.valueOf(downloadBytes));
+        textViewDownloadPackages.setText(String.valueOf(downloadPackages));
+    }
+
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static String[] PERMISSIONS_STORAGE = {
             "android.permission.READ_EXTERNAL_STORAGE",
@@ -149,12 +173,16 @@ public class MainActivity extends AppCompatActivity {
 
     public String ipv4, route, dns1, dns2, dns3;  // 通过 101 ip 响应获得
     public int protectedFd;                       // 通过 101 ip 响应获得
-    public TextView textViewTime;
+    public TextView textViewTime, textViewIpv4;
+    public TextView textViewUploadSpeed, textViewUploadBytes, textViewUploadPackages;
+    public TextView textViewDownloadSpeed, textViewDownloadBytes, textViewDownloadPackages;
     public EditText editTextIPv6, editTextPort;
     public Button buttonConnect;
     public Intent intentVpnService;
     public WorkHandler workHandler;
     public BackendHandler backendHandler;
     public Thread wordThread, backendThread, debugThread;
+
+    public int uploadBytes, uploadPackages, downloadBytes, downloadPackages;
 }
 

@@ -20,7 +20,7 @@ public class WorkHandler extends Handler {
         if (message.what == Constants.TYPE_IP_RESPONSE) {
             // 收到 IP 响应，连接 vpn
             Msg msg = (Msg) message.obj;
-            String []tmp = msg.data.split(" ");
+            String[] tmp = msg.data.split(" ");
             mainActivity.ipv4 = tmp[0];
             mainActivity.route = tmp[1];
             mainActivity.dns1 = tmp[2];
@@ -35,11 +35,19 @@ public class WorkHandler extends Handler {
             Log.i("protectedFd", String.valueOf(mainActivity.protectedFd));
             // 请求建立 VPN 连接，在 result 为 OK 时 setText("断开")
             mainActivity.startVpn();
-        } else {
+        } else if (message.what == Constants.TYPE_STAT) {
+            Msg msg = (Msg) message.obj;
+            String[] tmp = msg.data.split(" ");
+            int uploadBytes = Integer.parseInt(tmp[0]), uploadPackages = Integer.parseInt(tmp[1]);
+            int downloadBytes = Integer.parseInt(tmp[2]), downloadPackages = Integer.parseInt(tmp[3]);
+            mainActivity.updateStat(uploadBytes, uploadPackages, downloadBytes, downloadPackages);
+
+        } else if (message.what == 1) {  // 计时器
             int time = Integer.parseInt(mainActivity.textViewTime.getText().toString()) + 1;
             mainActivity.textViewTime.setText(String.valueOf(time));
             Log.i("timer", String.valueOf(time));
         }
     }
+
     private WeakReference<MainActivity> activity;
 }

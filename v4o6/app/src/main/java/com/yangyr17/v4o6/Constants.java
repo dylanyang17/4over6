@@ -9,10 +9,13 @@ public final class Constants {
         return type >= TYPE_IP_REQUEST && type <= TYPE_TUN;
     }
 
+    static final byte WHAT_TIMER = 1;
     static final byte TYPE_IP_REQUEST = 100;
     static final byte TYPE_IP_RESPONSE = 101;
     static final byte TYPE_PACKAGE_REQUEST = 102;
     static final byte TYPE_PACKAGE_RESPONSE = 103;
     static final byte TYPE_BEAT = 104;
     static final byte TYPE_TUN = 105;
+    static final byte TYPE_STAT = 106;
+    static final byte TYPE_DEBUG = 107;
 }

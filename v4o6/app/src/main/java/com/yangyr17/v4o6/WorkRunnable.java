@@ -56,7 +56,7 @@ public class WorkRunnable implements Runnable {
                     Msg msg = new Msg();
                     boolean suc = Msg.readMsg(ipFifoFile, buffer, msg);
                     if (!suc) {
-                        Log.e("WorkRunnable", "读取 Message 失败");
+                        Log.e("WorkRunnable", "读取 ip message 失败");
                         continue;
                     }
                     if (msg.type == Constants.TYPE_IP_RESPONSE) {
@@ -70,7 +70,23 @@ public class WorkRunnable implements Runnable {
             } else {
                 // 已经开启了 vpn
                 Message message = Message.obtain();
+                message.what = 1;
                 handler.sendMessage(message);
+
+                // 读取统计信息
+                File statFifoFile = new File(statFifoPath);
+                Msg msg = new Msg();
+                boolean suc = Msg.readMsg(statFifoFile, buffer, msg);
+                if (!suc) {
+                    Log.e("WorkRunnable", "读取 stat message 失败");
+                    continue;
+                }
+                if (msg.type == Constants.TYPE_STAT) {
+                    message = Message.obtain();
+                    message.what = msg.type;
+                    message.obj = msg;
+                    handler.sendMessage(message);
+                }
             }
         }
     }

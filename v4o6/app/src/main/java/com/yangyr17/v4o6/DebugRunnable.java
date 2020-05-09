@@ -27,7 +27,11 @@ public class DebugRunnable implements Runnable{
                     Log.e("DebugRunnable", "读取 Message 失败");
                     continue;
                 }
-                Log.i("DebugRunnable", "length: " + msg.length + ", type: " + msg.type + ", data: " + msg.data);
+                if (msg.type != Constants.TYPE_PACKAGE_RESPONSE) {
+                    Log.i("DebugRunnable", "length: " + msg.length + ", type: " + msg.type + ", data: " + msg.data);
+                } else {
+                    Log.i("DebugRunnable", "length: " + msg.length + ", type: " + msg.type);
+                }
             }
         }
     }

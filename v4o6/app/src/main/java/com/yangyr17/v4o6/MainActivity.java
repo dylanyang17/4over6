@@ -44,14 +44,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // 开启每秒计时并进行相应处理的工作
-    protected void startWorker() {
-        textViewTime.setText("0");
-        handler = new WorkHandler(this, getMainLooper());
-        wordThread = new Thread(new WorkRunnable(handler, ipFifoPath, tunFifoPath, statFifoPath));
-        wordThread.start();
-    }
-
     protected void checkPermissions(Activity activity) {
         try {
             //检测是否有写的权限
@@ -118,16 +110,24 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("connect", "清理管道失败");
                 }
             }
+
             Log.i("connect", "启动计时器线程");
-            startWorker();
+            textViewTime.setText("0");
+            workHandler = new WorkHandler(this, getMainLooper());
+            wordThread = new Thread(new WorkRunnable(workHandler, ipFifoPath, tunFifoPath, statFifoPath));
+            wordThread.start();
+
             Log.i("connect", "启动 C++ 后台线程");
-            backendThread = new Thread(new BackendRunnable(editTextIPv6.getText().toString(),
+            backendHandler = new BackendHandler(this, getMainLooper());
+            backendThread = new Thread(new BackendRunnable(backendHandler, editTextIPv6.getText().toString(),
                     Integer.parseInt(editTextPort.getText().toString()), ipFifoPath, tunFifoPath,
                     statFifoPath, debugFifoPath));
             backendThread.start();
+
             Log.i("connect", "启动 debug 线程");
             debugThread = new Thread(new DebugRunnable(debugFifoPath));
             debugThread.start();
+
         } else {
             // 断开连接
             Log.i("lala", "try to stop");
@@ -155,7 +155,8 @@ public class MainActivity extends AppCompatActivity {
     public EditText editTextIPv6, editTextPort;
     public Button buttonConnect;
     public Intent intentVpnService;
-    public WorkHandler handler;
+    public WorkHandler workHandler;
+    public BackendHandler backendHandler;
     public Thread wordThread, backendThread, debugThread;
 }
 

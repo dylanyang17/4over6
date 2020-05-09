@@ -26,6 +26,10 @@ public class Msg {
                 return false;
             }
             ret.length = Utils.byteToInt(buf);
+            if (ret.length > 4096 || ret.length < 0) {
+                Log.e("readMsg", "读取 Msg 失败，length 不在正常范围内：" + ret.length);
+                return false;
+            }
             // type
             readLen = in.read(buf, 0, 1);
             Log.i("readMsg", "length: " + ret.length);

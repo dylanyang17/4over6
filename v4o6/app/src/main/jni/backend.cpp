@@ -11,34 +11,18 @@
 #include "message.h"
 #include "utils.cpp"
 
-void writeMessageToSocket(int socketFd, Message message) {
-    send(socketFd, (void*)&message.length, 4, 0);
-    send(socketFd, (void*)&message.type, 4, 0);
-    send(socketFd, (void*)message.data, message.length-5, 0);
-}
-
-Message readMessageFromSocket(int socketFd) {
-    Message message;
-    if (recv(socketFd, &message.length, 4, 0) < 4) {
-        printf("读取 length 失败\n");
-    }
-    if (recv(socketFd, &message.type, 1, 0) < 1) {
-        printf("读取 type 失败\n");
-    }
-    int res = message.length - 5;
-    if (recv(socketFd, message.data, res, 0) < res) {
-        printf("读取 data 失败\n");
-    }
-    return message;
-}
-
 // 向 Fifo 中写入 Message
 void writeMessageToFifo(int fifoHandle, Message message) {
     // 按照大端序(网络字节序)传输
     int len = htonl(message.length);
     write(fifoHandle, &len, 4);
     write(fifoHandle, &message.type, 1);
-    write(fifoHandle, message.data, message.length - 5);
+    int res = message.length - 5, cnt = 0;
+    while (res > cnt) {
+        int tmp = write(fifoHandle, message.data + cnt, res - cnt);
+        if (tmp < 0) break;
+        cnt += tmp;
+    }
 }
 
 // 从 Fifo 中读取 Message
@@ -46,7 +30,41 @@ Message readMessageFromFifo(int fifoHandle) {
     Message message;
     read(fifoHandle, &message.length, 4);
     read(fifoHandle, &message.type, 1);
-    read(fifoHandle, message.data, message.length - 5);
+    int res = message.length - 5, cnt = 0;
+    while (res > cnt) {
+        int tmp = read(fifoHandle, message.data + cnt, res - cnt);
+        if (tmp < 0) break;
+        cnt += tmp;
+    }
+    return message;
+}
+
+void writeMessageToSocket(int socketFd, Message message) {
+    send(socketFd, (void*)&message.length, 4, 0);
+    send(socketFd, (void*)&message.type, 1, 0);
+    int res = message.length - 5, cnt = 0;
+    while (res > cnt) {
+        int tmp = send(socketFd, message.data + cnt, res - cnt, 0);
+        if (tmp < 0) return;
+        cnt += tmp;
+    }
+}
+
+Message readMessageFromSocket(int socketFd, int &cnt) {
+    Message message;
+    cnt = 0;
+    if (recv(socketFd, &message.length, 4, 0) < 4) {
+        printf("读取 length 失败\n");
+    }
+    if (recv(socketFd, &message.type, 1, 0) < 1) {
+        printf("读取 type 失败\n");
+    }
+    int res = message.length - 5;
+    while (cnt < res) {
+        int tmp = recv(socketFd, message.data + cnt, res - cnt, 0);
+        if (tmp == -1) break;
+        cnt += tmp;
+    }
     return message;
 }
 
@@ -77,7 +95,7 @@ void* readTun(void *arg) {
             message.type = 102;
             for (int i = 0; i < size; ++i) message.data[i] = tmp[i];
             writeMessageToSocket(socketFd, message);
-            writeMessageToFifo(debugFifoHandle, message);
+        //    writeMessageToFifo(debugFifoHandle, message);
         }
         // sprintf(tmp, "%d", size);
         // strcpy(info, tmp);
@@ -90,6 +108,7 @@ void* readTun(void *arg) {
 // 成功时返回 0，失败返回 -1
 int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *debugFifoPath, char *info) {
     // 创建 socket
+    int cnt;
     int socketFd = socket(AF_INET6, SOCK_STREAM, 0);
     if (socketFd < 0) {
         char tmp[] = "创建 socket 失败";
@@ -119,7 +138,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         strcpy(info, tmp);
         return -1;
     }*/
-    message = readMessageFromSocket(socketFd);
+    message = readMessageFromSocket(socketFd, cnt);
     if (message.type != 101) {
         char tmp[] = "IP 地址响应格式错误\n";
         strcpy(info, tmp);
@@ -206,9 +225,17 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     }
 
     while (true) {
-        message = readMessageFromSocket(socketFd);
-        sprintf(info, "收到 socket 消息, length:%d, type：%d, data: %s", message.length, (int)message.type, message.data);
-        return 0;
+        message = readMessageFromSocket(socketFd, cnt);
+        if (cnt < message.length-5) {
+            sprintf(info, "Error: length: %d, in fact: %d", message.length, cnt + 5);
+            break;
+        }
+        writeMessageToFifo(debugFifoHandle, message);
+        if (message.type == 103) {
+            write(tunFd, (void*)message.data, message.length - 5);
+        }
+        // sprintf(info, "收到 socket 消息, length:%d, type：%d, data: %s", message.length, (int)message.type, message.data);
+        // return 0;
     }
     // 暂时直接写在这里
 

@@ -20,8 +20,6 @@ import android.widget.TextView;
 
 import java.io.File;
 
-import static com.yangyr17.v4o6.Msg.writeMsg;
-
 public class MainActivity extends AppCompatActivity {
     private ServiceConnection connection = new ServiceConnection() {
         @Override

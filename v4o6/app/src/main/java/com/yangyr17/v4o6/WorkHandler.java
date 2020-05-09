@@ -26,11 +26,13 @@ public class WorkHandler extends Handler {
             mainActivity.dns1 = tmp[2];
             mainActivity.dns2 = tmp[3];
             mainActivity.dns3 = tmp[4];
+            mainActivity.protectedFd = Integer.parseInt(tmp[5]);
             Log.i("ipv4", mainActivity.ipv4);
             Log.i("route", mainActivity.route);
             Log.i("dns1", mainActivity.dns1);
             Log.i("dns2", mainActivity.dns2);
             Log.i("dns3", mainActivity.dns3);
+            Log.i("protectedFd", String.valueOf(mainActivity.protectedFd));
             // 请求建立 VPN 连接，在 result 为 OK 时 setText("断开")
             mainActivity.startVpn();
         } else {

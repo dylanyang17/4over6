@@ -95,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
             intentVpnService.putExtra("dns1", dns1);
             intentVpnService.putExtra("dns2", dns2);
             intentVpnService.putExtra("dns3", dns3);
+            intentVpnService.putExtra("protectedFd", protectedFd);
             intentVpnService.putExtra("tunFifoPath", tunFifoPath);
             startService(intentVpnService);
             bindService(intentVpnService, connection, Context.BIND_AUTO_CREATE);
@@ -144,6 +145,7 @@ public class MainActivity extends AppCompatActivity {
     public String ipFifoPath, tunFifoPath, statFifoPath;
 
     public String ipv4, route, dns1, dns2, dns3;  // 通过 101 ip 响应获得
+    public int protectedFd;                       // 通过 101 ip 响应获得
     public TextView textViewTime, textViewState;
     public EditText editTextIPv6, editTextPort;
     public Button buttonConnect;

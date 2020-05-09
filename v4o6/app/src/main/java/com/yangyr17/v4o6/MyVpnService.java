@@ -32,6 +32,8 @@ public class MyVpnService extends VpnService {
         String dns1 = bundle.getString("dns1");
         String dns2 = bundle.getString("dns2");
         String dns3 = bundle.getString("dns3");
+        int protectedFd = bundle.getInt("protectedFd");
+        protect(protectedFd);
         String tunFifoPath = bundle.getString("tunFifoPath");
         Builder builder = new Builder();
         builder.setMtu(Constants.mtu)

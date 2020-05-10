@@ -73,6 +73,9 @@ void writeDebugMessage(const char *info) {
 // 模拟阻塞行为，并加入对 timeout 的判断
 bool writeSingleToSocket(int socketFd, char *data, int len) {
     int cnt = 0;
+    char ttt[100];
+    // sprintf(ttt, "写 socket single, len: %d", len);
+    // writeDebugMessage(ttt);
     while (len > cnt) {
         // 判断 timeout
         pthread_mutex_lock(&beatTimerMutex);
@@ -83,9 +86,11 @@ bool writeSingleToSocket(int socketFd, char *data, int len) {
         pthread_mutex_unlock(&beatTimerMutex);
 
         int tmp = send(socketFd, data + cnt, len - cnt, 0);
-        if (tmp >= 0) {
+        if (tmp > 0) {
             cnt += tmp;
         } else if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN) {
+            sprintf(ttt, "重写 errno: %d", errno);
+            writeDebugMessage(ttt);
             continue;
         } else {
             return false;
@@ -122,7 +127,7 @@ bool readSingleFromSocket(int socketFd, char *data, int len) {
         pthread_mutex_unlock(&beatTimerMutex);
 
         int tmp = recv(socketFd, data + cnt, len - cnt, 0);
-        if (tmp >= 0) {
+        if (tmp > 0) {
             cnt += tmp;
         } else if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN) {
             continue;
@@ -250,21 +255,22 @@ void* timerWorker(void *arg) {
     int socketFd = threadArg.socketFd, statFifoHandle = threadArg.statFifoHandle;
     while (true) {
         sleep(1);
-        writeDebugMessage("获取锁 beat");
         pthread_mutex_lock(&beatTimerMutex);
-        writeDebugMessage("获取锁 beat 成功");
         ++beatTimer;
         if (timeout) {
             pthread_mutex_unlock(&beatTimerMutex);
+            writeDebugMessage("超时，退出计时器");
             break;
         }
         if (beatTimer > 60) {
             // 超时
             timeout = true;
             pthread_mutex_unlock(&beatTimerMutex);
+            writeDebugMessage("超时，退出计时器");
             break;
         } else if (beatTimer % 20 == 0) {
             // 向服务器发送心跳包
+            pthread_mutex_unlock(&beatTimerMutex);
             Message message;
             message.length = 5;
             message.type = 104;
@@ -272,21 +278,18 @@ void* timerWorker(void *arg) {
             writeDebugMessage("写入 socket");
             writeMessageToSocket(socketFd, message);
             writeDebugMessage("写入完毕");
+        } else {
+            pthread_mutex_unlock(&beatTimerMutex);
         }
-        pthread_mutex_unlock(&beatTimerMutex);
 
         // 发送统计信息
-        writeDebugMessage("获取锁 updown");
         pthread_mutex_lock(&uploadMutex);
         pthread_mutex_lock(&downloadMutex);
-        writeDebugMessage("获取锁 updown 完毕");
         Message message;
         sprintf(message.data, "%d %d %d %d", uploadBytes, uploadPackages, downloadBytes, downloadPackages);
         message.type = 106;
         message.length = strlen(message.data) + 5;
-        writeDebugMessage("写 statFifo");
         writeMessageToFifo(statFifoHandle, message);
-        writeDebugMessage("写 statFifo 完毕");
         uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
         pthread_mutex_unlock(&downloadMutex);
         pthread_mutex_unlock(&uploadMutex);
@@ -365,11 +368,6 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         printf("连接服务器成功：%s %d\n", ipv6, port);
     }
 
-    Message message;
-    message.type = 100;
-    message.length = 5;
-    writeMessageToSocket(socketFd, message);
-
     // 将 socket 设置为非阻塞
     int flags = fcntl(socketFd, F_GETFL, 0);
     if(fcntl(socketFd, F_SETFL, flags|O_NONBLOCK) < 0) {
@@ -377,6 +375,11 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         strcpy(info, tmp);
         return -1;
     }
+
+    Message message;
+    message.type = 100;
+    message.length = 5;
+    writeMessageToSocket(socketFd, message);
 
     message = readMessageFromSocket(socketFd, suc);
     if (message.type != 101) {

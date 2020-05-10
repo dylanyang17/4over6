@@ -149,6 +149,7 @@ Message readMessageFromSocket(int socketFd, bool &suc) {
     // if (recv(socketFd, &message.length, 4, 0) < 4) {
         printf("读取 length 失败\n");
         suc = false;
+        pthread_mutex_unlock(&socketReadMutex);
         return message;
     }
     char tmp[100];
@@ -257,16 +258,17 @@ void* timerWorker(void *arg) {
         sleep(1);
         pthread_mutex_lock(&beatTimerMutex);
         ++beatTimer;
+        char tmp[100];
+        sprintf(tmp, "当前 timeout：%d", (int)timeout);
+        writeDebugMessage(tmp);
         if (timeout) {
             pthread_mutex_unlock(&beatTimerMutex);
-            writeDebugMessage("超时，退出计时器");
             break;
         }
         if (beatTimer > 60) {
             // 超时
             timeout = true;
             pthread_mutex_unlock(&beatTimerMutex);
-            writeDebugMessage("超时，退出计时器");
             break;
         } else if (beatTimer % 20 == 0) {
             // 向服务器发送心跳包
@@ -275,9 +277,7 @@ void* timerWorker(void *arg) {
             message.length = 5;
             message.type = 104;
             writeDebugMessage(message);
-            writeDebugMessage("写入 socket");
             writeMessageToSocket(socketFd, message);
-            writeDebugMessage("写入完毕");
         } else {
             pthread_mutex_unlock(&beatTimerMutex);
         }
@@ -313,7 +313,7 @@ void* FBController(void *arg) {
         return NULL;
     }
     while (true) {
-        sleep(1);
+        sleep(0.2);
         Message message = readMessageFromFifo(FBFifoHandle, suc);
         if (suc && message.type == 108) {
             pthread_mutex_lock(&beatTimerMutex);
@@ -348,6 +348,8 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         return -1;
     }
 
+    writeDebugMessage("debug 启动");
+
     socketFd = socket(AF_INET6, SOCK_STREAM, 0);
     if (socketFd < 0) {
         char tmp[] = "创建 socket 失败";
@@ -356,6 +358,10 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         return -1;
     }
     printf("创建 socket, socketFd: %d\n", socketFd);
+
+    char tmp[4096];
+    sprintf(tmp, "socket 创建成功：%d", socketFd);
+    writeDebugMessage(tmp);
     
     // 连接服务器
     sockaddr_in6 saddr6 = utils::getSockaddr6(const_cast<char*>(ipv6), port);
@@ -366,6 +372,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         return -1;
     } else {
         printf("连接服务器成功：%s %d\n", ipv6, port);
+        writeDebugMessage("连接服务器成功");
     }
 
     // 将 socket 设置为非阻塞
@@ -374,12 +381,15 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         char tmp[] = "设置为非阻塞失败";
         strcpy(info, tmp);
         return -1;
+    } else {
+        writeDebugMessage("设置为非阻塞成功");
     }
 
     Message message;
     message.type = 100;
     message.length = 5;
     writeMessageToSocket(socketFd, message);
+    writeDebugMessage("向 socket 写入 ip 请求");
 
     message = readMessageFromSocket(socketFd, suc);
     if (message.type != 101) {
@@ -389,7 +399,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         return -1;
     }
     printf("IP 地址请求成功:\n");
-    char tmp[4096];
+    writeDebugMessage("ip 地址请求成功");
 
     // 将 protectedFd 加入到 message 中，注意到 message.data 收到时结尾有个空格
     sprintf(tmp, "%s%d", message.data, socketFd);
@@ -537,10 +547,11 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     // 暂时直接写在这里
     writeDebugMessage("3秒后切断后台主线程");
     // 关闭 DebugRunnable
+    sleep(2);
     message.length = 5;
     message.type = 109;
     writeDebugMessage(message);
-    sleep(3);
+    sleep(1);
     close(debugFifoHandle);
     close(socketFd);
     strcpy(info, "断开连接成功");

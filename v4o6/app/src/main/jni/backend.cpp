@@ -69,14 +69,24 @@ void writeDebugMessage(const char *info) {
     message.length = 5 + strlen(message.data);
     writeDebugMessage(message);
 }
-/*
-// 模拟阻塞，并注意判断 timeout
+
+// 模拟阻塞行为，并加入对 timeout 的判断
 bool writeSingleToSocket(int socketFd, char *data, int len) {
     int cnt = 0;
     while (len > cnt) {
+        // 判断 timeout
+        pthread_mutex_lock(&beatTimerMutex);
+        if (timeout) {
+            pthread_mutex_unlock(&beatTimerMutex);
+            return false;
+        }
+        pthread_mutex_unlock(&beatTimerMutex);
+
         int tmp = send(socketFd, data + cnt, len - cnt, 0);
         if (tmp >= 0) {
             cnt += tmp;
+        } else if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN) {
+            continue;
         } else {
             return false;
         }
@@ -88,24 +98,34 @@ bool writeSingleToSocket(int socketFd, char *data, int len) {
 // 注意 Socket 为非阻塞形式
 void writeMessageToSocket(int socketFd, Message message) {
     pthread_mutex_lock(&socketWriteMutex);
-    // writeSingleToSocket(socketFd, (char*)&message.length, 4);
-    // writeSingleToSocket(socketFd, (char*)&message.type, 1);
-    send(socketFd, &message.length, 4, 0);
-    send(socketFd, &message.type, 1, 0);
+    writeSingleToSocket(socketFd, (char*)&message.length, 4);
+    writeSingleToSocket(socketFd, (char*)&message.type, 1);
+    // send(socketFd, &message.length, 4, 0);
+    // send(socketFd, &message.type, 1, 0);
     if (message.length - 5 > 0) {
-        // writeSingleToSocket(socketFd, message.data, message.length - 5);
-        send(socketFd, message.data, message.length-5, 0);
+        writeSingleToSocket(socketFd, message.data, message.length - 5);
+        // send(socketFd, message.data, message.length-5, 0);
     }
     pthread_mutex_unlock(&socketWriteMutex);
 }
 
-// 模拟阻塞，并注意判断 timeout
+// 模拟阻塞行为，并加入对 timeout 的判断
 bool readSingleFromSocket(int socketFd, char *data, int len) {
     int cnt = 0;
     while (len > cnt) {
+        // 判断 timeout
+        pthread_mutex_lock(&beatTimerMutex);
+        if (timeout) {
+            pthread_mutex_unlock(&beatTimerMutex);
+            return false;
+        }
+        pthread_mutex_unlock(&beatTimerMutex);
+
         int tmp = recv(socketFd, data + cnt, len - cnt, 0);
         if (tmp >= 0) {
             cnt += tmp;
+        } else if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN) {
+            continue;
         } else {
             return false;
         }
@@ -120,31 +140,32 @@ Message readMessageFromSocket(int socketFd, bool &suc) {
     Message message;
     int cnt = 0;
     suc = true;
-    writeDebugMessage("读入中");
-    //if (!readSingleFromSocket(socketFd, (char*)&message.length, 4)) {
-    if (recv(socketFd, &message.length, 4, 0) < 4) {
+    if (!readSingleFromSocket(socketFd, (char*)&message.length, 4)) {
+    // if (recv(socketFd, &message.length, 4, 0) < 4) {
         printf("读取 length 失败\n");
         suc = false;
+        return message;
     }
     char tmp[100];
     sprintf(tmp, "message.length: %d", message.length);
     writeDebugMessage(tmp);
-    //if (!readSingleFromSocket(socketFd, (char*)&message.type, 1)) {
-    if (recv(socketFd, &message.length, 1, 0) < 1) {
+    if (!readSingleFromSocket(socketFd, (char*)&message.type, 1)) {
+    // if (recv(socketFd, &message.type, 1, 0) < 1) {
         printf("读取 type 失败\n");
         suc = false;
     }
     if (message.length - 5 > 0) {
-        // if (!readSingleFromSocket(socketFd, message.data, message.length-5)) {
-        if (recv(socketFd, message.data, message.length-5, 0) < message.length-5) {
+        if (!readSingleFromSocket(socketFd, message.data, message.length-5)) {
+        // if (recv(socketFd, message.data, message.length-5, 0) < message.length-5) {
             printf("读取 data 失败\n");
             suc = false;
         }
     }
     pthread_mutex_unlock(&socketReadMutex);
     return message;
-}*/
+}
 
+/*
 // 从 Socket 中读取 Message
 void writeMessageToSocket(int socketFd, Message message) {
     pthread_mutex_lock(&socketWriteMutex);
@@ -181,7 +202,7 @@ Message readMessageFromSocket(int socketFd, bool &suc) {
     }
     pthread_mutex_unlock(&socketReadMutex);
     return message;
-}
+}*/
 
 struct ThreadArg {
     int tunFd;
@@ -229,7 +250,9 @@ void* timerWorker(void *arg) {
     int socketFd = threadArg.socketFd, statFifoHandle = threadArg.statFifoHandle;
     while (true) {
         sleep(1);
+        writeDebugMessage("获取锁 beat");
         pthread_mutex_lock(&beatTimerMutex);
+        writeDebugMessage("获取锁 beat 成功");
         ++beatTimer;
         if (timeout) {
             pthread_mutex_unlock(&beatTimerMutex);
@@ -246,18 +269,24 @@ void* timerWorker(void *arg) {
             message.length = 5;
             message.type = 104;
             writeDebugMessage(message);
+            writeDebugMessage("写入 socket");
             writeMessageToSocket(socketFd, message);
+            writeDebugMessage("写入完毕");
         }
         pthread_mutex_unlock(&beatTimerMutex);
 
         // 发送统计信息
+        writeDebugMessage("获取锁 updown");
         pthread_mutex_lock(&uploadMutex);
         pthread_mutex_lock(&downloadMutex);
+        writeDebugMessage("获取锁 updown 完毕");
         Message message;
         sprintf(message.data, "%d %d %d %d", uploadBytes, uploadPackages, downloadBytes, downloadPackages);
         message.type = 106;
         message.length = strlen(message.data) + 5;
+        writeDebugMessage("写 statFifo");
         writeMessageToFifo(statFifoHandle, message);
+        writeDebugMessage("写 statFifo 完毕");
         uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
         pthread_mutex_unlock(&downloadMutex);
         pthread_mutex_unlock(&uploadMutex);
@@ -342,8 +371,12 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     writeMessageToSocket(socketFd, message);
 
     // 将 socket 设置为非阻塞
-    //int flags = fcntl(socketFd, F_GETFL, 0);
-    //fcntl(socketFd, F_SETFL, flags|O_NONBLOCK);
+    int flags = fcntl(socketFd, F_GETFL, 0);
+    if(fcntl(socketFd, F_SETFL, flags|O_NONBLOCK) < 0) {
+        char tmp[] = "设置为非阻塞失败";
+        strcpy(info, tmp);
+        return -1;
+    }
 
     message = readMessageFromSocket(socketFd, suc);
     if (message.type != 101) {
@@ -499,12 +532,12 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         // return 0;
     }
     // 暂时直接写在这里
-    writeDebugMessage("1秒后切断后台主线程");
+    writeDebugMessage("3秒后切断后台主线程");
     // 关闭 DebugRunnable
     message.length = 5;
     message.type = 109;
     writeDebugMessage(message);
-    sleep(1);
+    sleep(3);
     close(debugFifoHandle);
     close(socketFd);
     strcpy(info, "断开连接成功");

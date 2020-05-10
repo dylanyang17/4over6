@@ -33,6 +33,8 @@ JNIEXPORT jstring JNICALL Java_com_yangyr17_v4o6_JNIUtils_startBackend
     jstringToChar(env, jdebugFifoPath, debugFifoPath);
     jstringToChar(env, jFBFifoPath, FBFifoPath);
     char ret[200];
-    init(ipv6, port, ipFifoPath, tunFifoPath, statFifoPath, debugFifoPath, FBFifoPath, ret);
+    int socketFd;  // 以防万一
+    init(ipv6, port, ipFifoPath, tunFifoPath, statFifoPath, debugFifoPath, FBFifoPath, ret, socketFd);
+    close(socketFd);
     return (env)->NewStringUTF(ret);
 }

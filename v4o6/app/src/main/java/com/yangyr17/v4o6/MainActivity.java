@@ -24,7 +24,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
 public class MainActivity extends AppCompatActivity {
-    private ServiceConnection connection = new ServiceConnection() {
+    public ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder binder) {
             MyVpnService.MyVpnBinder myVpnBinder = (MyVpnService.MyVpnBinder) binder;
@@ -114,7 +114,6 @@ public class MainActivity extends AppCompatActivity {
             buttonConnect.setEnabled(false);
             isRunning = true;
 
-            uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
             updateStat(0, 0, 0, 0);
             File ipFifoFile = new File(ipFifoPath), tunFifoFile = new File(tunFifoPath),
                     statFifoFile = new File(statFifoPath), debugFifoFile = new File(debugFifoPath),
@@ -151,11 +150,11 @@ public class MainActivity extends AppCompatActivity {
             // 断开连接
             Log.i("lala", "try to stop");
             buttonConnect.setEnabled(false);
-            buttonConnect.setText("断开中...");
-            isRunning = false;
             myVpnService.stopVpn();
             unbindService(connection);
             stopService(intentVpnService);
+            buttonConnect.setText("断开中...");
+            isRunning = false;
         }
     }
 
@@ -225,6 +224,6 @@ public class MainActivity extends AppCompatActivity {
 
     public boolean isRunning = false;
 
-    public int uploadBytes, uploadPackages, downloadBytes, downloadPackages;
+    public int uploadBytes = 0, uploadPackages = 0, downloadBytes = 0, downloadPackages = 0;
 }
 

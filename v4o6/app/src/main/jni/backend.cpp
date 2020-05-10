@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <fcntl.h>
 #include "message.h"
+#include <errno.h>
 #include "utils.cpp"
 
 static bool timeout;   // 是否超时，同时也用来控制关闭线程
@@ -53,6 +54,97 @@ Message readMessageFromFifo(int fifoHandle, bool &suc) {
     return message;
 }
 
+// 发送 debug 消息，需要加锁
+void writeDebugMessage(Message message) {
+    pthread_mutex_lock(&debugFifoMutex);
+    writeMessageToFifo(debugFifoHandle, message);
+    pthread_mutex_unlock(&debugFifoMutex);
+}
+
+// 发送 107 类型的 debug 消息，用于发送自定义的字符串信息
+void writeDebugMessage(const char *info) {
+    Message message;
+    strcpy(message.data, info);
+    message.type = 107;
+    message.length = 5 + strlen(message.data);
+    writeDebugMessage(message);
+}
+/*
+// 模拟阻塞，并注意判断 timeout
+bool writeSingleToSocket(int socketFd, char *data, int len) {
+    int cnt = 0;
+    while (len > cnt) {
+        int tmp = send(socketFd, data + cnt, len - cnt, 0);
+        if (tmp >= 0) {
+            cnt += tmp;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
+// 从 Socket 中读取 Message
+// 注意 Socket 为非阻塞形式
+void writeMessageToSocket(int socketFd, Message message) {
+    pthread_mutex_lock(&socketWriteMutex);
+    // writeSingleToSocket(socketFd, (char*)&message.length, 4);
+    // writeSingleToSocket(socketFd, (char*)&message.type, 1);
+    send(socketFd, &message.length, 4, 0);
+    send(socketFd, &message.type, 1, 0);
+    if (message.length - 5 > 0) {
+        // writeSingleToSocket(socketFd, message.data, message.length - 5);
+        send(socketFd, message.data, message.length-5, 0);
+    }
+    pthread_mutex_unlock(&socketWriteMutex);
+}
+
+// 模拟阻塞，并注意判断 timeout
+bool readSingleFromSocket(int socketFd, char *data, int len) {
+    int cnt = 0;
+    while (len > cnt) {
+        int tmp = recv(socketFd, data + cnt, len - cnt, 0);
+        if (tmp >= 0) {
+            cnt += tmp;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
+// 向 Socket 中写入 Message
+// 注意 Socket 为非阻塞形式
+Message readMessageFromSocket(int socketFd, bool &suc) {
+    pthread_mutex_lock(&socketReadMutex);
+    Message message;
+    int cnt = 0;
+    suc = true;
+    writeDebugMessage("读入中");
+    //if (!readSingleFromSocket(socketFd, (char*)&message.length, 4)) {
+    if (recv(socketFd, &message.length, 4, 0) < 4) {
+        printf("读取 length 失败\n");
+        suc = false;
+    }
+    char tmp[100];
+    sprintf(tmp, "message.length: %d", message.length);
+    writeDebugMessage(tmp);
+    //if (!readSingleFromSocket(socketFd, (char*)&message.type, 1)) {
+    if (recv(socketFd, &message.length, 1, 0) < 1) {
+        printf("读取 type 失败\n");
+        suc = false;
+    }
+    if (message.length - 5 > 0) {
+        // if (!readSingleFromSocket(socketFd, message.data, message.length-5)) {
+        if (recv(socketFd, message.data, message.length-5, 0) < message.length-5) {
+            printf("读取 data 失败\n");
+            suc = false;
+        }
+    }
+    pthread_mutex_unlock(&socketReadMutex);
+    return message;
+}*/
+
 // 从 Socket 中读取 Message
 void writeMessageToSocket(int socketFd, Message message) {
     pthread_mutex_lock(&socketWriteMutex);
@@ -89,22 +181,6 @@ Message readMessageFromSocket(int socketFd, bool &suc) {
     }
     pthread_mutex_unlock(&socketReadMutex);
     return message;
-}
-
-// 发送 debug 消息，需要加锁
-void writeDebugMessage(Message message) {
-    pthread_mutex_lock(&debugFifoMutex);
-    writeMessageToFifo(debugFifoHandle, message);
-    pthread_mutex_unlock(&debugFifoMutex);
-}
-
-// 发送 107 类型的 debug 消息，用于发送自定义的字符串信息
-void writeDebugMessage(const char *info) {
-    Message message;
-    strcpy(message.data, info);
-    message.type = 107;
-    message.length = 5 + strlen(message.data);
-    writeDebugMessage(message);
 }
 
 struct ThreadArg {
@@ -221,13 +297,26 @@ void* FBController(void *arg) {
 // 创建 socket、连接服务器，并请求 IP 地址
 // ret 为返回的字符串信息，若失败则对应为失败信息，若成功则对应为 "IP Route DNS DNS DNS" 格式的信息
 // 成功时返回 0，失败返回 -1
-int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *debugFifoPath, char *FBFifoPath, char *info) {
+int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFifoPath, char *debugFifoPath, char *FBFifoPath, char *info, int &socketFd) {
     // 创建 socket
     bool suc;
     timeout = false;
     uploadBytes = uploadPackages = downloadBytes = downloadPackages = 0;
     int cnt;
-    int socketFd = socket(AF_INET6, SOCK_STREAM, 0);
+
+    // 创建 debugFifo 管道
+    if (mkfifo(debugFifoPath, 0666) < 0) {
+        char tmp[] = "创建 debugFifo 管道失败";
+        strcpy(info, tmp);
+        return -1;
+    }
+    if((debugFifoHandle = open(debugFifoPath, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
+        char tmp[] = "打开 debugFifo 管道失败";
+        strcpy(info, tmp);
+        return -1;
+    }
+
+    socketFd = socket(AF_INET6, SOCK_STREAM, 0);
     if (socketFd < 0) {
         char tmp[] = "创建 socket 失败";
         printf("%s\n", tmp);
@@ -246,19 +335,20 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     } else {
         printf("连接服务器成功：%s %d\n", ipv6, port);
     }
+
     Message message;
     message.type = 100;
-    message.length = sizeof(message);
+    message.length = 5;
     writeMessageToSocket(socketFd, message);
-    /*int num = send(socketFd, (void*)&message, message.length, 0);
-    if (num < message.length) {
-        char tmp[] = "向服务器发送 IP 地址请求失败\n";
-        strcpy(info, tmp);
-        return -1;
-    }*/
+
+    // 将 socket 设置为非阻塞
+    //int flags = fcntl(socketFd, F_GETFL, 0);
+    //fcntl(socketFd, F_SETFL, flags|O_NONBLOCK);
+
     message = readMessageFromSocket(socketFd, suc);
     if (message.type != 101) {
-        char tmp[] = "IP 地址响应格式错误\n";
+        char tmp[100];
+        sprintf(tmp, "IP. length: %d, type: %d, data: %s", message.length, (int)message.type, message.data);
         strcpy(info, tmp);
         return -1;
     }
@@ -298,44 +388,33 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     // 创建 statFifo 管道
     int statFifoHandle;
     if (mkfifo(statFifoPath, 0666) < 0) {
-        char tmp[] = "创建 statFifo 管道失败\n";
+        char tmp[] = "创建 statFifo 管道失败";
         strcpy(info, tmp);
         return -1;
     }
     if((statFifoHandle = open(statFifoPath, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
-        char tmp[] = "打开 statFifo 管道失败\n";
+        char tmp[] = "打开 statFifo 管道失败";
         strcpy(info, tmp);
         return -1;
     }
 
-    // 创建 debugFifo 管道
-    if (mkfifo(debugFifoPath, 0666) < 0) {
-        char tmp[] = "创建 debugFifo 管道失败\n";
-        strcpy(info, tmp);
-        return -1;
-    }
-    if((debugFifoHandle = open(debugFifoPath, O_RDWR | O_CREAT | O_TRUNC)) < 0) {
-        char tmp[] = "打开 debugFifo 管道失败\n";
-        strcpy(info, tmp);
-        return -1;
-    }
     writeDebugMessage(message);
 
     // 读取 tunFifo 管道获得 tun 描述符
     if (mkfifo(tunFifoPath, 0666) < 0) {
-        char tmp[] = "创建 tunFifo 管道失败\n";
+        char tmp[] = "创建 tunFifo 管道失败";
         strcpy(info, tmp);
         return -1;
     }
     int tunFifoHandle;
     if ((tunFifoHandle = open(tunFifoPath, O_RDONLY)) < 0) {
-        char tmp[] = "打开 tunFifo 失败\n";
+        char tmp[] = "打开 tunFifo 失败";
         strcpy(info, tmp);
         return -1;
     }
     message = readMessageFromFifo(tunFifoHandle, suc);
     if (!suc) {
-        char tmp[] = "读取 tun 失败\n";
+        char tmp[] = "读取 tun 失败";
         strcpy(info, tmp);
         return -1;
     }
@@ -345,7 +424,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     close(tunFifoHandle);
 
     // std::thread t(mainLoop);
-    printf("进入主循环...\n\n");
+    printf("进入主循环...");
     // strcpy(info, message.data);
 
     // 创建 readTun 线程用于读取 tun0 接口并发送给服务器
@@ -354,7 +433,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     threadArg.tunFd = tunFd, threadArg.socketFd = socketFd, threadArg.statFifoHandle = statFifoHandle;
     if (pthread_create(&readTunThread, NULL, &readTun, (void*)&threadArg) != 0)
     {
-        char tmp[] = "创建线程 readTun 失败\n";
+        char tmp[] = "创建线程 readTun 失败";
         strcpy(info, tmp);
         return -1;
     }
@@ -363,7 +442,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     pthread_t timerWorkerThread;
     if (pthread_create(&timerWorkerThread, NULL, &timerWorker, (void*)&threadArg) != 0)
     {
-        char tmp[] = "创建线程 timerWorker 失败\n";
+        char tmp[] = "创建线程 timerWorker 失败";
         strcpy(info, tmp);
         return -1;
     }
@@ -372,18 +451,14 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     pthread_t FBControllerThread;
     if (pthread_create(&FBControllerThread, NULL, &FBController, (void*)FBFifoPath) != 0)
     {
-        char tmp[] = "创建线程 FBController 失败\n";
+        char tmp[] = "创建线程 FBController 失败";
         strcpy(info, tmp);
         return -1;
     }
 
     while (true) {
-        writeDebugMessage("开始读入");
         message = readMessageFromSocket(socketFd, suc);
-        writeDebugMessage("读入完毕");
-        writeDebugMessage("请求锁 beatTimerMutex");
         pthread_mutex_lock(&beatTimerMutex);
-        writeDebugMessage("请求锁 beatTimerMutex 成功");
         if (timeout == true) {
             // 超时
             char tmp[] = "与服务器的连接超时";
@@ -401,9 +476,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
             writeDebugMessage(message);
             if (message.type == 103) {
                 // 收到服务端的访问响应
-                writeDebugMessage("请求锁 downloadMutex");
                 pthread_mutex_lock(&downloadMutex);
-                writeDebugMessage("请求锁 downloadMutex 成功");
                 int bytes = message.length - 5;
                 if (bytes < 0 || bytes > 4096) {
                     // 不应当出现
@@ -412,14 +485,10 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
                 downloadPackages++;
                 downloadBytes += bytes;
                 pthread_mutex_unlock(&downloadMutex);
-                writeDebugMessage("开始写入");
                 write(tunFd, (void*)message.data, bytes);
-                writeDebugMessage("写入完毕");
             } else if (message.type == 104) {
                 // 收到服务端的心跳包
-                writeDebugMessage("请求锁 beatTimerMutex");
                 pthread_mutex_lock(&beatTimerMutex);
-                writeDebugMessage("请求锁 beatTimerMutex 成功");
                 beatTimer = 0;
                 pthread_mutex_unlock(&beatTimerMutex);
             }

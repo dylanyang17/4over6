@@ -378,8 +378,12 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     }
 
     while (true) {
+        writeDebugMessage("开始读入");
         message = readMessageFromSocket(socketFd, suc);
+        writeDebugMessage("读入完毕");
+        writeDebugMessage("请求锁 beatTimerMutex");
         pthread_mutex_lock(&beatTimerMutex);
+        writeDebugMessage("请求锁 beatTimerMutex 成功");
         if (timeout == true) {
             // 超时
             char tmp[] = "与服务器的连接超时";
@@ -397,7 +401,9 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
             writeDebugMessage(message);
             if (message.type == 103) {
                 // 收到服务端的访问响应
+                writeDebugMessage("请求锁 downloadMutex");
                 pthread_mutex_lock(&downloadMutex);
+                writeDebugMessage("请求锁 downloadMutex 成功");
                 int bytes = message.length - 5;
                 if (bytes < 0 || bytes > 4096) {
                     // 不应当出现
@@ -406,10 +412,14 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
                 downloadPackages++;
                 downloadBytes += bytes;
                 pthread_mutex_unlock(&downloadMutex);
+                writeDebugMessage("开始写入");
                 write(tunFd, (void*)message.data, bytes);
+                writeDebugMessage("写入完毕");
             } else if (message.type == 104) {
                 // 收到服务端的心跳包
+                writeDebugMessage("请求锁 beatTimerMutex");
                 pthread_mutex_lock(&beatTimerMutex);
+                writeDebugMessage("请求锁 beatTimerMutex 成功");
                 beatTimer = 0;
                 pthread_mutex_unlock(&beatTimerMutex);
             }
@@ -423,7 +433,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
     writeDebugMessage("1秒后切断后台主线程");
     // 关闭 DebugRunnable
     message.length = 5;
-    message.type = 108;
+    message.type = 109;
     writeDebugMessage(message);
     sleep(1);
     close(debugFifoHandle);

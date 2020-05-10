@@ -4,11 +4,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.VpnService;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -18,6 +21,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.text.DecimalFormat;
@@ -38,12 +42,33 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    public boolean isNetworkConnected(Context context) {
+        if (context != null) {
+            ConnectivityManager mConnectivityManager = (ConnectivityManager) context
+                    .getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo mNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
+            if (mNetworkInfo != null) {
+                return mNetworkInfo.isAvailable();
+            }
+        }
+        return false;
+    }
+
     protected void startVpn() {
         Intent intent = VpnService.prepare(this);
         if (intent != null) {
             startActivityForResult(intent, 0);
         } else {
             onActivityResult(0, RESULT_OK, null);
+        }
+    }
+
+    protected void stopVpn() {
+        if (isServiceRunning) {
+            isServiceRunning = false;
+            myVpnService.stopVpn();
+            unbindService(connection);
+            stopService(intentVpnService);
         }
     }
 
@@ -103,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
             textViewIpv4.setText(ipv4);
             buttonConnect.setText("断开");
             buttonConnect.setEnabled(true);
+            isServiceRunning = true;
         }
     }
 
@@ -110,9 +136,17 @@ public class MainActivity extends AppCompatActivity {
     public void connect(View view) {
         if (buttonConnect.getText().equals("连接")) {
             // 进行连接
-            buttonConnect.setText("连接中...");
             buttonConnect.setEnabled(false);
-            isRunning = true;
+            buttonConnect.setText("连接中...");
+
+            if (!isNetworkConnected(getBaseContext())) {
+                Toast.makeText(getBaseContext(), "请检查网络连接", Toast.LENGTH_LONG).show();
+                buttonConnect.setText("连接");
+                buttonConnect.setEnabled(true);
+                return;
+            }
+
+            isRunning = isBackendRunning = true;
 
             updateStat(0, 0, 0, 0);
             File ipFifoFile = new File(ipFifoPath), tunFifoFile = new File(tunFifoPath),
@@ -143,16 +177,15 @@ public class MainActivity extends AppCompatActivity {
             backendThread.start();
 
             Log.i("connect", "启动 debug 线程");
-            debugThread = new Thread(new DebugRunnable(debugFifoPath));
+            debugHandler = new DebugHandler(this, getMainLooper());
+            debugThread = new Thread(new DebugRunnable(debugFifoPath, debugHandler));
             debugThread.start();
 
         } else {
             // 断开连接
             Log.i("lala", "try to stop");
             buttonConnect.setEnabled(false);
-            myVpnService.stopVpn();
-            unbindService(connection);
-            stopService(intentVpnService);
+            stopVpn();
             buttonConnect.setText("断开中...");
             isRunning = false;
         }
@@ -220,9 +253,10 @@ public class MainActivity extends AppCompatActivity {
     public Intent intentVpnService;
     public WorkHandler workHandler;
     public BackendHandler backendHandler;
+    public DebugHandler debugHandler;
     public Thread workThread, backendThread, debugThread;
 
-    public boolean isRunning = false;
+    public boolean isRunning = false, isServiceRunning = false, isBackendRunning = false;
 
     public int uploadBytes = 0, uploadPackages = 0, downloadBytes = 0, downloadPackages = 0;
 }

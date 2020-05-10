@@ -10,9 +10,10 @@ import java.io.FileInputStream;
 
 // 不断读取 debugFifo 以获取调试信息
 public class DebugRunnable implements Runnable{
-    public DebugRunnable(String debugFifoPath) {
+    public DebugRunnable(String debugFifoPath, DebugHandler handler) {
         super();
         this.debugFifoPath = debugFifoPath;
+        this.handler = handler;
     }
 
     @Override
@@ -51,8 +52,12 @@ public class DebugRunnable implements Runnable{
         }  catch (Exception e) {
             Log.e("DebugRunnable", e.toString());
         }
+        Message message = Message.obtain();
+        message.what = Constants.TYPE_CLOSE_DEBUG;
+        handler.handleMessage(message);
     }
 
     private String debugFifoPath;
+    private DebugHandler handler;
     private byte []buffer = new byte[4200];
 }

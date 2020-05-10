@@ -259,7 +259,6 @@ void* timerWorker(void *arg) {
         pthread_mutex_lock(&beatTimerMutex);
         ++beatTimer;
         char tmp[100];
-        sprintf(tmp, "当前 timeout：%d", (int)timeout);
         writeDebugMessage(tmp);
         if (timeout) {
             pthread_mutex_unlock(&beatTimerMutex);
@@ -502,6 +501,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         return -1;
     }
 
+    int failCnt = 0;  // 读取 socket 的连续失败次数
     while (true) {
         message = readMessageFromSocket(socketFd, suc);
         pthread_mutex_lock(&beatTimerMutex);
@@ -519,6 +519,7 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
         }
         pthread_mutex_unlock(&beatTimerMutex);
         if (suc) {
+            failCnt = 0;
             writeDebugMessage(message);
             if (message.type == 103) {
                 // 收到服务端的访问响应
@@ -540,6 +541,12 @@ int init(char *ipv6, int port, char *ipFifoPath, char *tunFifoPath, char *statFi
             }
         } else {
             writeDebugMessage("读取 socket 失败");
+            if (++failCnt == 10) {
+                // 连续超过十次失败，认为已经断开连接
+                pthread_mutex_lock(&beatTimerMutex);
+                timeout = 1;
+                pthread_mutex_unlock(&beatTimerMutex);
+            }
         }
         // sprintf(info, "收到 socket 消息, length:%d, type：%d, data: %s", message.length, (int)message.type, message.data);
         // return 0;

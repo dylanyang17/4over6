@@ -296,7 +296,7 @@ void* timerWorker(void *arg) {
     writeDebugMessage("切断后台 timerWorker 线程");
 }
 
-// 前台对后台的控制器线程，利用 tunFifo 实现
+// 前台对后台的控制器线程，利用 FBFifo 实现
 void* FBController(void *arg) {
     bool suc;
     char *FBFifoPath = (char*)arg;
